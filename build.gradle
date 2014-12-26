@@ -16,6 +16,8 @@ repositories {
 dependencies {
     compile 'org.eclipse.jetty:jetty-servlet:7.5.3.v20111011'
     compile 'javax.ws.rs:jsr311-api:0.11'
+    compile 'org.apache.commons:commons-csv:+'
+    compile 'org.apache.commons:commons-io:+'
 }
 
 task stage(dependsOn: ['clean', 'installApp'])
