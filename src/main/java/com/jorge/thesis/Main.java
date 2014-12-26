@@ -1,9 +1,9 @@
-package org.jorge.lolin1dp;
+package com.jorge.thesis;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.jorge.lolin1dp.services.MessagingService;
+import com.jorge.thesis.services.MessagingService;
 
 public class Main {
 
