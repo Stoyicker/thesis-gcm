@@ -1,9 +1,11 @@
-apply plugin:'java'
-apply plugin:'application'
-apply plugin:'eclipse'
+apply plugin: 'java'
+apply plugin: 'application'
 
+//noinspection GroovyUnusedAssignment
 sourceCompatibility = 1.8
+//noinspection GroovyUnusedAssignment
 mainClassName = "org.jorge.lolin1dp.Main"
+//noinspection GroovyUnusedAssignment
 applicationName = "app"
 version = '2.0'
 
@@ -13,9 +15,6 @@ repositories {
 
 dependencies {
     compile 'org.eclipse.jetty:jetty-servlet:7.5.3.v20111011'
-    compile 'org.jsoup:jsoup:1.7.2'
-    compile 'org.json:json:20090211'
-    compile 'com.squareup.okhttp:okhttp:2.1.0'
     compile 'javax.ws.rs:jsr311-api:0.11'
 }
 
