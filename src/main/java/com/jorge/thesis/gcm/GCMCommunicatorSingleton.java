@@ -138,20 +138,25 @@ public class GCMCommunicatorSingleton {
         private synchronized void sendSyncRequestToAllIds(CEntityTagClass.CEntityTag tag) {
             List<Request> requests = createSyncRequests(tag);
             //Inserts at tail
-            requests.forEach(this::sendSyncRequestToIdSet);
+            requests.forEach(this::queueRequestForExecution);
         }
 
-        private synchronized void sendSyncRequestToIdSet(Request request) {
+        /**
+         * Sends a request to as many ids as possible.
+         *
+         * @param request {@link com.squareup.okhttp.Request} The request to send.
+         */
+        private synchronized void queueRequestForExecution(Request request) {
             if (!mSyncRequestQueue.contains(request))
                 try {
                     mSyncRequestQueue.put(request); // Inserts at tail
                 } catch (InterruptedException e) {
                     e.printStackTrace(System.err);
-                    sendSyncRequestToIdSet(request, 1D);
+                    queueRequestForExecution(request, 1D);
                 }
         }
 
-        private synchronized void sendSyncRequestToIdSet(Request request, Double exponentialWaitSeconds) {
+        private synchronized void queueRequestForExecution(Request request, Double exponentialWaitSeconds) {
             final Integer EXPONENTIAL_WAIT_INCREASE_FACTOR = 2;
 
             try {
@@ -166,7 +171,8 @@ public class GCMCommunicatorSingleton {
                     mSyncRequestQueue.put(request); // Inserts at tail
                 } catch (InterruptedException e) {
                     e.printStackTrace(System.err);
-                    sendSyncRequestToIdSet(request, Math.pow(exponentialWaitSeconds, EXPONENTIAL_WAIT_INCREASE_FACTOR));
+                    queueRequestForExecution(request, Math.pow(exponentialWaitSeconds,
+                            EXPONENTIAL_WAIT_INCREASE_FACTOR));
                 }
         }
 
