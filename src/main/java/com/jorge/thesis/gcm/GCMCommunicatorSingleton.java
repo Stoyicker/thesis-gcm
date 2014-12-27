@@ -1,9 +1,10 @@
 package com.jorge.thesis.gcm;
 
-import com.jorge.thesis.EnvVars;
 import com.jorge.thesis.datamodel.CEntityTagClass;
 import com.jorge.thesis.io.FileReadUtils;
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
+import com.jorge.thesis.util.EnvVars;
+import com.jorge.thesis.util.TimeUtils;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.RequestBody;
@@ -16,17 +17,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 
 public class GCMCommunicatorSingleton {
 
     private static final Object LOCK = new Object();
-    private static final Integer DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE = 20;
+    private static final Integer DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE = 200;
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final Integer MAX_AMOUNT_OF_IDS_PER_REQUEST = 950; //Must be 1000 or less
+    private static final Long TAG_SYNC_REQUEST_INITIAL_DELAY = 55L;
+    private static final Integer EXPONENTIAL_WAIT_INCREASE_FACTOR = 2;
     private static volatile GCMCommunicatorSingleton mInstance;
-    private final BlockingQueue<CEntityTagClass.CEntityTag> mTagRequestQueue;
+    private final BlockingQueue<CDelayedTag> mTagRequestQueue;
 
     private GCMCommunicatorSingleton() {
         mTagRequestQueue = new LinkedBlockingQueue<>(DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE);
@@ -57,13 +59,15 @@ public class GCMCommunicatorSingleton {
      */
     public synchronized Boolean queueTagSyncRequest(CEntityTagClass.CEntityTag tag) {
         Boolean ret = Boolean.TRUE;
+        final CDelayedTag wrapper = new CDelayedTag(tag, TAG_SYNC_REQUEST_INITIAL_DELAY, TimeUnit
+                .MILLISECONDS);
 
-        if (!mTagRequestQueue.contains(tag))
+        if (!mTagRequestQueue.contains(wrapper))
             try {
-                mTagRequestQueue.put(tag); //Inserts at tail
+                mTagRequestQueue.put(wrapper); //Inserts at tail
             } catch (InterruptedException e) {
                 e.printStackTrace(System.err);
-                ret = queueTagSyncRequest(tag, 1D);
+                ret = queueDelayedTagSyncRequest(wrapper);
             }
         else
             return Boolean.FALSE;
@@ -71,23 +75,17 @@ public class GCMCommunicatorSingleton {
         return ret;
     }
 
-    private synchronized Boolean queueTagSyncRequest(CEntityTagClass.CEntityTag tag, Double exponentialWaitSeconds) {
-        final Integer EXPONENTIAL_WAIT_INCREASE_FACTOR = 2;
+    private synchronized Boolean queueDelayedTagSyncRequest(CDelayedTag tag) {
         Boolean ret = Boolean.TRUE;
-
-        try {
-            Thread.sleep((long) (exponentialWaitSeconds * 1000));
-        } catch (InterruptedException e) {
-            e.printStackTrace(System.err);
-            //Will never happen
-        }
 
         if (!mTagRequestQueue.contains(tag))
             try {
                 mTagRequestQueue.put(tag); // Inserts at tail
             } catch (InterruptedException e) {
                 e.printStackTrace(System.err);
-                ret = queueTagSyncRequest(tag, Math.pow(exponentialWaitSeconds, EXPONENTIAL_WAIT_INCREASE_FACTOR));
+                ret = queueDelayedTagSyncRequest(new CDelayedTag(tag, (long) Math.pow(tag.getDelay(TimeUnit
+                                .MILLISECONDS),
+                        EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS));
             }
         else
             return Boolean.FALSE;
@@ -95,17 +93,65 @@ public class GCMCommunicatorSingleton {
         return ret;
     }
 
+    private static class CDelayedTag implements Delayed {
+        private CEntityTagClass.CEntityTag mTag;
+        private Long mDelay;
+        private TimeUnit mDelayUnit;
+
+        public CDelayedTag(CDelayedTag _tag, Long _delay, TimeUnit _unit) {
+            this(_tag.getPureTag(), _delay, _unit);
+        }
+
+        public CDelayedTag(CEntityTagClass.CEntityTag _tag, Long _delay, TimeUnit _unit) {
+            mTag = _tag;
+            mDelay = _delay;
+            mDelayUnit = _unit;
+        }
+
+        @Override
+        public int compareTo(@SuppressWarnings("NullableProblems") Delayed o) {
+            if (o instanceof CDelayedTag) {
+                return TimeUtils.convertTimeTo(mDelay, mDelayUnit, TimeUnit.MILLISECONDS).compareTo(o.getDelay(TimeUnit
+                        .MILLISECONDS));
+            } else
+                throw new UnsupportedOperationException(getClass().getName() + " objects can only be compared as " +
+                        "CEntityDelayedTag " +
+                        "among " +
+                        "themselves.");
+        }
+
+        @Override
+        public long getDelay(@SuppressWarnings("NullableProblems") TimeUnit unit) {
+            return TimeUtils.convertTimeTo(mDelay, mDelayUnit, unit);
+        }
+
+        public CEntityTagClass.CEntityTag getPureTag() {
+            return mTag;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof CDelayedTag))
+                throw new UnsupportedOperationException(getClass().getName() + " objects can only be compared for " +
+                        "equality as " +
+                        "CDelayedTag " +
+                        "among " +
+                        "themselves.");
+            else
+                return getPureTag().equals(((CDelayedTag) obj).getPureTag());
+        }
+    }
+
     private static class TagSyncRequestConsumerRunnable implements Runnable {
 
         private static final long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
-        private static final Integer DEFAULT_SYNC_REQUEST_QUEUE_MAX_SIZE = 100;
         private final String GOOGLE_GCM_URL;
-        private final BlockingQueue<CEntityTagClass.CEntityTag> mTagRequestQueue;
-        private final BlockingQueue<Request> mSyncRequestQueue;
+        private final BlockingQueue<CDelayedTag> mTagRequestQueue;
+        private final BlockingQueue<CDelayedRequest> mSyncRequestQueue;
 
-        public TagSyncRequestConsumerRunnable(BlockingQueue<CEntityTagClass.CEntityTag> _queue) {
+        public TagSyncRequestConsumerRunnable(BlockingQueue<CDelayedTag> _queue) {
             mTagRequestQueue = _queue;
-            mSyncRequestQueue = new LinkedBlockingQueue<>(DEFAULT_SYNC_REQUEST_QUEUE_MAX_SIZE);
+            mSyncRequestQueue = new DelayQueue<>();
             try {
                 GOOGLE_GCM_URL = IOUtils.toString(FileReadUtils.class.getResourceAsStream
                         ("/gcm_server_url"));
@@ -135,53 +181,36 @@ public class GCMCommunicatorSingleton {
             }
         }
 
-        private synchronized void sendSyncRequestToAllIds(CEntityTagClass.CEntityTag tag) {
-            List<Request> requests = createSyncRequests(tag);
+        private synchronized void sendSyncRequestToAllIds(CDelayedTag tag) {
+            List<CDelayedRequest> requests = createSyncRequests(tag);
             //Inserts at tail
-            requests.forEach(this::queueRequestForExecution);
+            requests.forEach(this::queueDelayedRequestForExecution);
         }
 
         /**
-         * Sends a request to as many ids as possible.
+         * Queues a delayed request to be sent to as many ids as possible.
          *
-         * @param request {@link com.squareup.okhttp.Request} The request to send.
+         * @param request {@link CDelayedRequest} The request to send.
          */
-        private synchronized void queueRequestForExecution(Request request) {
+        synchronized void queueDelayedRequestForExecution(CDelayedRequest request) {
             if (!mSyncRequestQueue.contains(request))
                 try {
                     mSyncRequestQueue.put(request); // Inserts at tail
                 } catch (InterruptedException e) {
                     e.printStackTrace(System.err);
-                    queueRequestForExecution(request, 1D);
+                    queueDelayedRequestForExecution(new CDelayedRequest(request, (long) Math.pow(request.getDelay
+                                    (TimeUnit
+                                            .MILLISECONDS),
+                            EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS));
                 }
         }
 
-        private synchronized void queueRequestForExecution(Request request, Double exponentialWaitSeconds) {
-            final Integer EXPONENTIAL_WAIT_INCREASE_FACTOR = 2;
-
-            try {
-                Thread.sleep((long) (exponentialWaitSeconds * 1000));
-            } catch (InterruptedException e) {
-                e.printStackTrace(System.err);
-                //Will never happen
-            }
-
-            if (!mSyncRequestQueue.contains(request))
-                try {
-                    mSyncRequestQueue.put(request); // Inserts at tail
-                } catch (InterruptedException e) {
-                    e.printStackTrace(System.err);
-                    queueRequestForExecution(request, Math.pow(exponentialWaitSeconds,
-                            EXPONENTIAL_WAIT_INCREASE_FACTOR));
-                }
-        }
-
-        private synchronized List<Request> createSyncRequests(CEntityTagClass.CEntityTag tag) {
+        private synchronized List<CDelayedRequest> createSyncRequests(CDelayedTag tag) {
             List<String> targetIds = new ArrayList<>();//TODO DAO.getRegisteredIds(tag);
             targetIds.add("1"); //TODO Remove this when DAO.getRegisteredIds(tag); is done
             targetIds.add("2"); //TODO Remove this when DAO.getRegisteredIds(tag); is done
             targetIds.add("3"); //TODO Remove this when DAO.getRegisteredIds(tag); is done
-            List<Request> ret = new LinkedList<>();
+            List<CDelayedRequest> ret = new LinkedList<>();
             for (Integer i = 0; !targetIds.isEmpty(); i++) {
                 List<String> thisGroupOfIds;
                 final Integer startIndex = i * MAX_AMOUNT_OF_IDS_PER_REQUEST, lastIndex = (i + 1) *
@@ -194,17 +223,18 @@ public class GCMCommunicatorSingleton {
                 try {
                     body.put("registration_ids", new JSONArray(thisGroupOfIds));
                     JSONObject data = new JSONObject();
-                    data.put("tag", tag.name());
+                    data.put("tag", tag.getPureTag().name());
                     body.put("data", data);
                 } catch (JSONException e) {
                     e.printStackTrace(System.err);
                     //Will never happen
                 }
-                ret.add(new Request.Builder().
+                ret.add(new CDelayedRequest(new Request.Builder().
                         addHeader("Authorization", EnvVars.API_KEY).
                         addHeader("Content-Type", "application/json").
                         url(GOOGLE_GCM_URL).
-                        post(RequestBody.create(JSON, body.toString())).build());
+                        post(RequestBody.create(JSON, body.toString())).build(), tag.getDelay(TimeUnit.MILLISECONDS),
+                        TimeUnit.MILLISECONDS));
             }
             return ret;
         }
@@ -213,9 +243,9 @@ public class GCMCommunicatorSingleton {
     public static class GCMRequestConsumerRunnable implements Runnable {
 
         private static final long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
-        private final BlockingQueue<Request> mRequestQueue;
+        private final BlockingQueue<CDelayedRequest> mRequestQueue;
 
-        public GCMRequestConsumerRunnable(BlockingQueue<Request> _requestQueue) {
+        public GCMRequestConsumerRunnable(BlockingQueue<CDelayedRequest> _requestQueue) {
             mRequestQueue = _requestQueue;
         }
 
@@ -224,7 +254,7 @@ public class GCMCommunicatorSingleton {
             //noinspection InfiniteLoopStatement
             while (true) {
                 try {
-                    Request thisRequest = mRequestQueue.take();
+                    CDelayedRequest thisRequest = mRequestQueue.take();
                     new GCMRequestExecutor(thisRequest).run();
                 } catch (InterruptedException e) {
                     //Report, take a break and keep on going
@@ -240,16 +270,16 @@ public class GCMCommunicatorSingleton {
         }
 
         private static class GCMRequestExecutor implements Runnable {
-            Request mRequest;
+            CDelayedRequest mDelayedRequest;
 
-            private GCMRequestExecutor(Request _request) {
-                mRequest = _request;
+            private GCMRequestExecutor(CDelayedRequest _request) {
+                mDelayedRequest = _request;
             }
 
             @Override
             public void run() {
-                GCMResponseHandlerSingleton.getInstance().handleGCMResponse(mRequest, HTTPRequestsSingleton
-                        .getInstance().performRequest(mRequest));
+                GCMResponseHandlerSingleton.getInstance().handleGCMResponse(mDelayedRequest, HTTPRequestsSingleton
+                        .getInstance().performRequest(mDelayedRequest.getPureRequest()));
             }
         }
     }

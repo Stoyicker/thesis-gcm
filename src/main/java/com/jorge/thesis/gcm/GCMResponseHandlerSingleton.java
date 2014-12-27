@@ -1,7 +1,6 @@
 package com.jorge.thesis.gcm;
 
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
-import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -32,10 +31,10 @@ public class GCMResponseHandlerSingleton {
         return ret;
     }
 
-    void handleGCMResponse(Request request, Response response) {
+    void handleGCMResponse(CDelayedRequest delayedRequest, Response response) {
         Integer responseCode = response.code();
         if (Objects.equals(responseCode, HTTPRequestsSingleton.IN_PLACE_ERROR_STATUS_CODE)) {
-            //TODO Readd the request for this id using exp. back-off
+            //TODO Readd the whole request using exp. back-off
         }
         try {
             final JSONObject body;

@@ -2,6 +2,7 @@ package com.jorge.thesis;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
 import com.jorge.thesis.services.MessagingService;
+import com.jorge.thesis.util.EnvVars;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -15,7 +16,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Integer webPort;
         try {
-            webPort = Integer.valueOf(System.getenv("PORT"));
+            webPort = Integer.valueOf(EnvVars.PORT);
             if (webPort < MINIMUM_PORT) {
                 throw new NumberFormatException(MessageFormat.format("Invalid port, use a number between {0} and " +
                         "{1}", MINIMUM_PORT, MAXIMUM_PORT));
