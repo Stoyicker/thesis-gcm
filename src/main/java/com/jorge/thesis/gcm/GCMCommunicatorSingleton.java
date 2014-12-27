@@ -224,7 +224,8 @@ public class GCMCommunicatorSingleton {
             //noinspection InfiniteLoopStatement
             while (true) {
                 try {
-                    HTTPRequestsSingleton.getInstance().performRequest(mRequestQueue.take());
+                    Request thisRequest = mRequestQueue.take();
+                    new GCMRequestExecutor(thisRequest).run();
                 } catch (InterruptedException e) {
                     //Report, take a break and keep on going
                     e.printStackTrace(System.err);
@@ -235,6 +236,20 @@ public class GCMCommunicatorSingleton {
                         //Will never happen
                     }
                 }
+            }
+        }
+
+        private static class GCMRequestExecutor implements Runnable {
+            Request mRequest;
+
+            private GCMRequestExecutor(Request _request) {
+                mRequest = _request;
+            }
+
+            @Override
+            public void run() {
+                GCMResponseHandlerSingleton.getInstance().handleGCMResponse(mRequest, HTTPRequestsSingleton
+                        .getInstance().performRequest(mRequest));
             }
         }
     }
