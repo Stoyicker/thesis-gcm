@@ -29,7 +29,6 @@ public class Main {
             for (Object x : CEntityTagClass.CEntityTag.values())
                 System.out.println(x);
         } else System.out.println("No tags were loaded");
-        System.exit(-1);
 
         Server server = new Server(webPort);
         ServletContextHandler context = new ServletContextHandler(
