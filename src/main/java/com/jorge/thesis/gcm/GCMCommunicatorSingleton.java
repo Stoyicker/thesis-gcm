@@ -2,8 +2,8 @@ package com.jorge.thesis.gcm;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class GCMCommunicatorSingleton {
 
@@ -13,7 +13,7 @@ public class GCMCommunicatorSingleton {
     private final BlockingQueue<CEntityTagClass.CEntityTag> syncRequestQueue;
 
     private GCMCommunicatorSingleton() {
-        syncRequestQueue = new ArrayBlockingQueue<>(DEFAULT_SYNC_REQUEST_MAX_SIZE);
+        syncRequestQueue = new LinkedBlockingQueue<>(DEFAULT_SYNC_REQUEST_MAX_SIZE);
     }
 
     public static GCMCommunicatorSingleton getInstance() {
@@ -30,6 +30,17 @@ public class GCMCommunicatorSingleton {
         return ret;
     }
 
-    public void queueTagSyncRequest(CEntityTagClass tag) {
+    public synchronized Boolean queueTagSyncRequest(CEntityTagClass.CEntityTag tag) {
+        Boolean ret = Boolean.TRUE;
+
+        if (!syncRequestQueue.contains(tag))
+            try {
+                syncRequestQueue.put(tag); // Inserts at tail
+            } catch (InterruptedException e) {
+                e.printStackTrace(System.err);
+                ret = Boolean.FALSE;
+            }
+
+        return ret;
     }
 }
