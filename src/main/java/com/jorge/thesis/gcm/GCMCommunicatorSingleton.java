@@ -29,10 +29,12 @@ public class GCMCommunicatorSingleton {
     private static final Integer EXPONENTIAL_WAIT_INCREASE_FACTOR = 2;
     private static volatile GCMCommunicatorSingleton mInstance;
     private final BlockingQueue<CDelayedTag> mTagRequestQueue;
+    private final TagSyncRequestConsumerRunnable mTagSyncRequestConsumer;
 
     private GCMCommunicatorSingleton() {
         mTagRequestQueue = new LinkedBlockingQueue<>(DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE);
-        new TagSyncRequestConsumerRunnable(mTagRequestQueue).run();
+        mTagSyncRequestConsumer = new TagSyncRequestConsumerRunnable(mTagRequestQueue);
+        mTagSyncRequestConsumer.run();
     }
 
     public static GCMCommunicatorSingleton getInstance() {
@@ -91,6 +93,10 @@ public class GCMCommunicatorSingleton {
             return Boolean.FALSE;
 
         return ret;
+    }
+
+    public void delayAndQueueRequestForExecution(CDelayedRequest delayedRequest) {
+        mTagSyncRequestConsumer.delayAndQueueRequestForExecution(delayedRequest);
     }
 
     private static class CDelayedTag implements Delayed {
@@ -184,7 +190,7 @@ public class GCMCommunicatorSingleton {
         private synchronized void sendSyncRequestToAllIds(CDelayedTag tag) {
             List<CDelayedRequest> requests = createSyncRequests(tag);
             //Inserts at tail
-            requests.forEach(this::queueDelayedRequestForExecution);
+            requests.forEach(this::delayAndQueueRequestForExecution);
         }
 
         /**
@@ -192,13 +198,18 @@ public class GCMCommunicatorSingleton {
          *
          * @param request {@link CDelayedRequest} The request to send.
          */
-        synchronized void queueDelayedRequestForExecution(CDelayedRequest request) {
+        synchronized void delayAndQueueRequestForExecution(CDelayedRequest request) {
+            request = new CDelayedRequest(request, (long) Math.pow(request.getDelay
+                            (TimeUnit
+                                    .MILLISECONDS),
+                    EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS);
+
             if (!mSyncRequestQueue.contains(request))
                 try {
                     mSyncRequestQueue.put(request); // Inserts at tail
                 } catch (InterruptedException e) {
                     e.printStackTrace(System.err);
-                    queueDelayedRequestForExecution(new CDelayedRequest(request, (long) Math.pow(request.getDelay
+                    delayAndQueueRequestForExecution(new CDelayedRequest(request, (long) Math.pow(request.getDelay
                                     (TimeUnit
                                             .MILLISECONDS),
                             EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS));
