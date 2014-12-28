@@ -1,6 +1,6 @@
 package com.jorge.thesis.datamodel;
 
-import com.jorge.thesis.io.FileReadUtils;
+import com.jorge.thesis.io.file.FileReadUtils;
 import com.jorge.thesis.io.enumrefl.EnumBuster;
 import org.apache.commons.io.IOUtils;
 

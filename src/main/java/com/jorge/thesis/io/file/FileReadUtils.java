@@ -1,4 +1,4 @@
-package com.jorge.thesis.io;
+package com.jorge.thesis.io.file;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;

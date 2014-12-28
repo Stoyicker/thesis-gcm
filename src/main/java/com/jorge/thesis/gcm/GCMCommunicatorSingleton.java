@@ -1,7 +1,7 @@
 package com.jorge.thesis.gcm;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
-import com.jorge.thesis.io.FileReadUtils;
+import com.jorge.thesis.io.file.FileReadUtils;
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
 import com.jorge.thesis.util.EnvVars;
 import com.jorge.thesis.util.TimeUtils;
