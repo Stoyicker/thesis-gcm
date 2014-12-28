@@ -58,13 +58,16 @@ public class GCMResponseHandlerSingleton {
                                 } catch (JSONException e) {
                                     switch (obj.getString("error")) {
                                         case "Unavailable":
-                                            //TODO Readd the request for this id using exp. back-off
+                                            System.err.println("Server unavailable\nRetrying with exponential " +
+                                                    "back-off...");
+                                            GCMCommunicatorSingleton.getInstance().delayAndQueueRequestForExecution
+                                                    (delayedRequest);
                                             break;
                                         case "NotRegistered":
                                             //TODO Remove registration_id from the database
                                             break;
                                         case "MissingRegistration":
-                                            //Do nothing, we wanted no targets
+                                            //Do nothing, we wanted no targets and so it be
                                             break;
                                         case "InvalidRegistration":
                                             throw new IllegalStateException("GCM Error response InvalidRegistration -" +
