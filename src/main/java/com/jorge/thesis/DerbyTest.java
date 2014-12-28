@@ -6,11 +6,6 @@ public abstract class DerbyTest {
 
     public static void test() {
         try {
-            Class.forName("org.apache.derby.jdbc.Driver");
-        } catch (ClassNotFoundException cnfe) {
-            System.err.println("Derby driver not found.");
-        }
-        try {
             Connection conn = DriverManager.getConnection("jdbc:derby://localhost:1527/test;create=true;user=APP;" +
                     "pass=APP");
             Statement s = conn.createStatement();
