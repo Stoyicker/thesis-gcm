@@ -29,6 +29,7 @@ public final class TagService extends HttpServlet {
                 .getParameter("tags");
 
         if (requestType != null && paramTags != null) {
+            //TODO ENFORCE TAGS TO BE IN THE CORRECT FORMAT. OTHER THAN THAT, SC_BAD_REQUEST
             switch (requestType.toLowerCase()) {
                 case "update": //Request sent by the file server
                     final StringTokenizer stringTokenizer = new StringTokenizer(paramTags, TAG_SEPARATOR);
