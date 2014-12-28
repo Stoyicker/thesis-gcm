@@ -237,6 +237,10 @@ public final class GCMCommunicatorSingleton {
                     e.printStackTrace(System.err);
                     //Will never happen
                 }
+                if (EnvVars.API_KEY == null) {
+                    throw new IllegalStateException("API_KEY environment variable not defined. Please check the " +
+                            "technical specification for instructions.");
+                }
                 ret.add(new CDelayedRequest(new Request.Builder().
                         addHeader("Authorization", EnvVars.API_KEY).
                         addHeader("Content-Type", "application/json").

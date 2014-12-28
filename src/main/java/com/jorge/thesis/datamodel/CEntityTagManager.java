@@ -51,6 +51,9 @@ public abstract class CEntityTagManager {
                     : tagSetFilePaths[0];
 
             try {
+
+                //TODO Check that the CSV is right, and if it isn't, ignore it
+
                 final List<String> tags = FileReadUtils.readCSVFile(tagSetFilePath);
                 createTagsFromStringList(buster, tags);
             } catch (FileNotFoundException e) {
