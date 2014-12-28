@@ -12,7 +12,7 @@ import java.text.MessageFormat;
 
 public class Main {
 
-    private static final Integer DEFAULT_PORT = 8080, MINIMUM_PORT = 50000, MAXIMUM_PORT = 65000;
+    private static final Integer DEFAULT_PORT = 60000, MINIMUM_PORT = 50000, MAXIMUM_PORT = 65000;
 
     public static void main(String[] args) throws Exception {
         Integer webPort;
