@@ -22,5 +22,3 @@ dependencies {
     compile 'org.json:json:20090211'
     compile 'org.apache.derby:derbyclient:10.4.2.0'
 }
-
-task stage(dependsOn: ['clean', 'installApp'])
