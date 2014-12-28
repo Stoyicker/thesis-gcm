@@ -1,5 +1,6 @@
 package com.jorge.thesis.gcm;
 
+import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
 import com.squareup.okhttp.Response;
 import org.json.JSONArray;
@@ -47,16 +48,15 @@ public final class GCMResponseHandlerSingleton {
                 }
                 if (responseCode == 200) {
                     try {
-                        if (((!body.get("failure").toString().contentEquals("0") || !body.get("canonical_ids")
-                                .toString()
-                                .contentEquals("0")))) {
-                            final JSONArray results = body.getJSONArray("results");
+                        if (((!body.get("failure").toString().contentEquals("0") || !body.get("canonical_ids") //(1)
+                                .toString().contentEquals("0")))) {
+                            final JSONArray results = body.getJSONArray("results"); //(2)
                             for (int i = 0; i < results.length(); i++) {
-                                final JSONObject obj = results.getJSONObject(i);
+                                final JSONObject obj = results.getJSONObject(i); //(3)
                                 try {
                                     final String message_id = obj.getString("message_id");
                                 } catch (JSONException e) {
-                                    switch (obj.getString("error")) {
+                                    switch (obj.getString("error")) { // (4)
                                         case "Unavailable":
                                             System.err.println("Server unavailable\nRetrying with exponential " +
                                                     "back-off...");
@@ -64,7 +64,11 @@ public final class GCMResponseHandlerSingleton {
                                                     (delayedRequest);
                                             break;
                                         case "NotRegistered":
-                                            //TODO Remove registration_id from the database
+                                            System.out.println("Detected unregistered device. Removing from database." +
+                                                    "..");
+                                            DBDAOSingleton.getInstance().removeRegistrationIdFromAllTags(new JSONObject(
+                                                    (delayedRequest.getPureRequest().body().toString()))
+                                                    .getJSONArray("registration_ids").getString(i)); //(5)
                                             break;
                                         case "MissingRegistration":
                                             //Do nothing, we wanted no targets and so it be
@@ -127,13 +131,21 @@ public final class GCMResponseHandlerSingleton {
                                                     "more " +
                                                     "information.");
                                         default:
-                                            //TODO Remove registration_id from the database
+                                            System.err.println("Unexpected error identifier " + obj.getString
+                                                    ("error") + " received. Deleting " +
+                                                    "id from database...");
+                                            DBDAOSingleton.getInstance().removeRegistrationIdFromAllTags(new JSONObject(
+                                                    (delayedRequest.getPureRequest().body().toString()))
+                                                    .getJSONArray("registration_ids").getString(i));
                                     }
                                 }
                                 try {
                                     final String registration_id = obj.getString
                                             ("registration_id");
-                                    //TODO Update registration_id in the database
+                                    System.err.println("Registration id update requested...");
+                                    DBDAOSingleton.getInstance().updateRegistrationIdOnAllTags(new JSONObject(
+                                            (delayedRequest.getPureRequest().body().toString()))
+                                            .getJSONArray("registration_ids").getString(i), registration_id);
                                 } catch (JSONException e) {
                                     //Everything went fine and update is not needed (message_id is set
                                     // and registration_id not) or there was error (message_id was not set)
@@ -145,11 +157,13 @@ public final class GCMResponseHandlerSingleton {
                         //Will never happen:
                         // (1) If the status code is 200 the fields "failure" and "canonical_ids" always exist
                         // (2) If the status code is 200 and either "failure" or "canonical_ids" are not
-                        // zero, then the "results" field exists.
+                        // zero, then the "results" field exists
                         // (3) Standard traversing of a JSONArray using its size as delimiter and never modifying it, so
                         // never going beyond bounds
                         // (4) If the status code is 200 and the field "message_id" does not exist, then the field
                         // "error" always exist
+                        // (5) Gotten to this point, we know that the response is JSON and that it contains a
+                        // "registration_ids" array
                         // See https://developer.android.com/google/gcm/http
                         // .html#error_codes for more information
                     }

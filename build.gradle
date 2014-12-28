@@ -17,7 +17,7 @@ dependencies {
     compile 'org.eclipse.jetty:jetty-servlet:7.5.3.v20111011'
     compile 'javax.ws.rs:jsr311-api:0.11'
     compile 'org.apache.commons:commons-csv:1.0'
-    compile 'org.apache.commons:commons-io:2.4'
+    compile 'commons-io:commons-io:2.4'
     compile 'com.squareup.okhttp:okhttp:2.1.0'
     compile 'org.json:json:20090211'
 }

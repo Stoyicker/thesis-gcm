@@ -1,7 +1,7 @@
 package com.jorge.thesis.datamodel;
 
-import com.jorge.thesis.io.file.FileReadUtils;
 import com.jorge.thesis.io.enumrefl.EnumBuster;
+import com.jorge.thesis.io.file.FileReadUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.FileNotFoundException;

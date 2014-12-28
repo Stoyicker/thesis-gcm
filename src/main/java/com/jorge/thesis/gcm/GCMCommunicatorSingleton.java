@@ -1,6 +1,7 @@
 package com.jorge.thesis.gcm;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
+import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.io.file.FileReadUtils;
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
 import com.jorge.thesis.util.EnvVars;
@@ -14,7 +15,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -217,10 +217,7 @@ public final class GCMCommunicatorSingleton {
         }
 
         private synchronized List<CDelayedRequest> createSyncRequests(CDelayedTag tag) {
-            List<String> targetIds = new ArrayList<>();//TODO DAO.getRegisteredIds(tag);
-            targetIds.add("1"); //TODO Remove this when DAO.getRegisteredIds(tag); is done
-            targetIds.add("2"); //TODO Remove this when DAO.getRegisteredIds(tag); is done
-            targetIds.add("3"); //TODO Remove this when DAO.getRegisteredIds(tag); is done
+            List<String> targetIds = DBDAOSingleton.getInstance().getRegisteredIds(tag.getPureTag());
             List<CDelayedRequest> ret = new LinkedList<>();
             for (Integer i = 0; !targetIds.isEmpty(); i++) {
                 List<String> thisGroupOfIds;

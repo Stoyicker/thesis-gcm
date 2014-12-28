@@ -2,6 +2,7 @@ package com.jorge.thesis.control;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
 import com.jorge.thesis.gcm.GCMCommunicatorSingleton;
+import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.io.enumrefl.EnumBuster;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -43,9 +44,11 @@ public final class TagManagerSingleton {
             l.add(s);
 
             if (CEntityTagClass.createTagsFromStringList(buster, l) == 1) { //Return is amount of newly added tags
-                //TODO add it to the database
+                if (DBDAOSingleton.getInstance().addTag(s)) {
+                    GCMCommunicatorSingleton.getInstance().queueTagSyncRequest(CEntityTagClass.CEntityTag.valueOf(s));
+                } else
+                    System.out.println("Error when adding tag " + s + " to database. Skipping.");
             }
-            GCMCommunicatorSingleton.getInstance().queueTagSyncRequest(CEntityTagClass.CEntityTag.valueOf(s));
         }
     }
 
