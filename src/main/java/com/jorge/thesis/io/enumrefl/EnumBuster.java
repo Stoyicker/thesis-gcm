@@ -148,12 +148,12 @@ public final class EnumBuster<E extends Enum<E>> {
                             String value, int ordinal,
                             Object[] additional)
             throws Exception {
-        Object[] parms = new Object[additional.length + 2];
-        parms[0] = value;
-        parms[1] = ordinal;
+        Object[] params = new Object[additional.length + 2];
+        params[0] = value;
+        params[1] = ordinal;
         System.arraycopy(
-                additional, 0, parms, 2, additional.length);
-        return clazz.cast(ca.newInstance(parms));
+                additional, 0, params, 2, additional.length);
+        return clazz.cast(ca.newInstance(params));
     }
 
     /**

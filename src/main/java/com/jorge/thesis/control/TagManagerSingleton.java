@@ -1,9 +1,14 @@
 package com.jorge.thesis.control;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
+import com.jorge.thesis.gcm.GCMCommunicatorSingleton;
+import com.jorge.thesis.io.enumrefl.EnumBuster;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public final class TagManagerSingleton {
 
@@ -30,13 +35,17 @@ public final class TagManagerSingleton {
 
     public synchronized void createTagSyncRequest(String s) {
         synchronized (TAG_ACCESS_LOCK) {
-        /*TODO
-        if it doesn't exist in the enum, then {
-            add it to the enum
-            add it to the database
-        }
-        make the sync request
-        */
+            final EnumBuster<CEntityTagClass.CEntityTag> buster =
+                    new EnumBuster<>(CEntityTagClass.CEntityTag.class,
+                            CEntityTagClass.class);
+
+            final List<String> l = new LinkedList<>();
+            l.add(s);
+
+            if (CEntityTagClass.createTagsFromStringList(buster, l) == 1) { //Return is amount of newly added tags
+                //TODO add it to the database
+            }
+            GCMCommunicatorSingleton.getInstance().queueTagSyncRequest(CEntityTagClass.CEntityTag.valueOf(s));
         }
     }
 

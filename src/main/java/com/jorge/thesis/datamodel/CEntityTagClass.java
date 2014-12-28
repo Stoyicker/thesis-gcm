@@ -13,12 +13,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class CEntityTagClass {
+public abstract class CEntityTagClass {
 
     private static final String[] DEFAULT_TAGS = {}; //By default there are no tags
     private static Path DEFAULT_TAGS_FILE_PATH;
 
-    private CEntityTagClass() {
+    private static void init() {
         try {
             DEFAULT_TAGS_FILE_PATH = Paths.get(IOUtils.toString(CEntityTagClass.class.getResourceAsStream
                     ("/configuration_folder_name")), "tags.conf");
@@ -29,7 +29,7 @@ public class CEntityTagClass {
     }
 
     public static Boolean instantiateTagSet(Path... tagSetFilePaths) {
-        new CEntityTagClass(); //Init
+        init();
         final EnumBuster<CEntityTag> buster =
                 new EnumBuster<>(CEntityTag.class,
                         CEntityTagClass.class);
@@ -52,7 +52,12 @@ public class CEntityTagClass {
         createTagsFromStringList(buster, Arrays.asList(DEFAULT_TAGS));
     }
 
-    private static void createTagsFromStringList(EnumBuster<CEntityTag> buster, List<String> tags) {
+    /**
+     * @param buster
+     * @param tags
+     * @return {@link Integer} The amount of tags actually added.
+     */
+    public static Integer createTagsFromStringList(EnumBuster<CEntityTag> buster, List<String> tags) {
         final List<String> nonDuplicateTags = new ArrayList<>();
         for (String uniqueTag : tags) {
             uniqueTag = uniqueTag.trim().toLowerCase();
@@ -60,12 +65,17 @@ public class CEntityTagClass {
             nonDuplicateTags.add(uniqueTag);
         }
 
+        int ret = 0;
+
         for (String tag : nonDuplicateTags) {
             if (!tag.isEmpty()) {
                 CEntityTag thisOneAsEntityTag = buster.make(tag);
                 buster.addByValue(thisOneAsEntityTag);
+                ret++;
             }
         }
+
+        return ret;
     }
 
     public enum CEntityTag {}
