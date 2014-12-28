@@ -1,6 +1,6 @@
 package com.jorge.thesis.services;
 
-import com.jorge.thesis.control.TagManagerSingleton;
+import com.jorge.thesis.datamodel.CEntityTagManager;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -20,20 +20,40 @@ public final class TagService extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         resp.setStatus(HttpServletResponse.SC_OK);
-        resp.getWriter().print(TagManagerSingleton.getInstance().generateAllCurrentTagsAsJSONText());
+        resp.getWriter().print(CEntityTagManager.generateAllCurrentTagsAsJSONText());
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String paramTags = req.getParameter("tags");
-        if (paramTags != null) {
-            final StringTokenizer stringTokenizer = new StringTokenizer(paramTags, TAG_SEPARATOR);
+        String requestType = req.getParameter("type"), deviceId = req.getParameter("id"), paramTags = req
+                .getParameter("tags");
 
-            while (stringTokenizer.hasMoreTokens()) {
-                TagManagerSingleton.getInstance().createTagSyncRequest(stringTokenizer.nextToken());
+        if (requestType != null && paramTags != null) {
+            switch (requestType.toLowerCase()) {
+                case "update": //Request sent by the file server
+                    final StringTokenizer stringTokenizer = new StringTokenizer(paramTags, TAG_SEPARATOR);
+
+                    while (stringTokenizer.hasMoreTokens()) {
+                        CEntityTagManager.createTagSyncRequest(stringTokenizer.nextToken());
+                    }
+
+                    resp.setStatus(HttpServletResponse.SC_OK);
+                    break;
+                case "subscribe": //Request sent by a device
+                    if (deviceId != null) {
+                        //TODO Subscribe device to tags
+                    } else
+                        resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    break;
+                case "unsubscribe": //Request sent by a device
+                    if (deviceId != null) {
+                        //TODO Unsubscribe device from tags
+                    } else
+                        resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    break;
+                default:
+                    resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
-
-            resp.setStatus(HttpServletResponse.SC_OK);
         } else
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
     }

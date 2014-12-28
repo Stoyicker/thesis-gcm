@@ -1,6 +1,7 @@
 package com.jorge.thesis;
 
-import com.jorge.thesis.datamodel.CEntityTagClass;
+import com.jorge.thesis.datamodel.CEntityTagManager;
+import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.services.TagService;
 import com.jorge.thesis.util.EnvVars;
 import org.eclipse.jetty.server.Server;
@@ -25,13 +26,13 @@ public class Main {
             webPort = DEFAULT_PORT;
         }
 
-        if (CEntityTagClass.instantiateTagSet()) {
+        DBDAOSingleton.getInstance().createDatabaseEnvironment();
+
+        if (CEntityTagManager.instantiateTagSet()) {
             System.out.println("Initialised tags: ");
-            for (Object x : CEntityTagClass.CEntityTag.values())
+            for (Object x : CEntityTagManager.CEntityTag.values())
                 System.out.println(x);
         } else System.out.println("No tags were loaded");
-
-        DerbyTest.test();
 
         Server server = new Server(webPort);
         ServletContextHandler context = new ServletContextHandler(

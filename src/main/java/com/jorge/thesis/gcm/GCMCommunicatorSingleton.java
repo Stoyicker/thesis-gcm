@@ -1,6 +1,6 @@
 package com.jorge.thesis.gcm;
 
-import com.jorge.thesis.datamodel.CEntityTagClass;
+import com.jorge.thesis.datamodel.CEntityTagManager;
 import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.io.file.FileReadUtils;
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
@@ -54,12 +54,12 @@ public final class GCMCommunicatorSingleton {
     /**
      * Queues a sync request for a tag.
      *
-     * @param tag {@link com.jorge.thesis.datamodel.CEntityTagClass.CEntityTag} Tag whose sync is
+     * @param tag {@link com.jorge.thesis.datamodel.CEntityTagManager.CEntityTag} Tag whose sync is
      *            requested.
      * @return <value>TRUE</value> if successful, <value>FALSE</value> if a synchronisation for this tag is already
      * queued.
      */
-    public synchronized Boolean queueTagSyncRequest(CEntityTagClass.CEntityTag tag) {
+    public synchronized Boolean queueTagSyncRequest(CEntityTagManager.CEntityTag tag) {
         Boolean ret = Boolean.TRUE;
         final CDelayedTag wrapper = new CDelayedTag(tag, TAG_SYNC_REQUEST_INITIAL_DELAY, TimeUnit
                 .MILLISECONDS);
@@ -100,7 +100,7 @@ public final class GCMCommunicatorSingleton {
     }
 
     private static class CDelayedTag implements Delayed {
-        private CEntityTagClass.CEntityTag mTag;
+        private CEntityTagManager.CEntityTag mTag;
         private Long mDelay;
         private TimeUnit mDelayUnit;
 
@@ -108,7 +108,7 @@ public final class GCMCommunicatorSingleton {
             this(_tag.getPureTag(), _delay, _unit);
         }
 
-        public CDelayedTag(CEntityTagClass.CEntityTag _tag, Long _delay, TimeUnit _unit) {
+        public CDelayedTag(CEntityTagManager.CEntityTag _tag, Long _delay, TimeUnit _unit) {
             mTag = _tag;
             mDelay = _delay;
             mDelayUnit = _unit;
@@ -131,7 +131,7 @@ public final class GCMCommunicatorSingleton {
             return TimeUtils.convertTimeTo(mDelay, mDelayUnit, unit);
         }
 
-        public CEntityTagClass.CEntityTag getPureTag() {
+        public CEntityTagManager.CEntityTag getPureTag() {
             return mTag;
         }
 

@@ -1,0 +1,1 @@
+jdbc:derby://localhost:1527/COMM_EXP_GCM;create=true;
