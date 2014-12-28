@@ -71,9 +71,6 @@ public final class DBDAOSingleton {
         }
     }
 
-    /**
-     * TODO Add a tag
-     */
     public Boolean addTag(String tagName) {
         PreparedStatement tagRowInsertion, tagTableCreation;
         try {
