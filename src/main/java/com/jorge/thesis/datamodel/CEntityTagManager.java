@@ -107,7 +107,7 @@ public abstract class CEntityTagManager {
     }
 
 
-    public static synchronized String generateAllCurrentTagsAsJSONText() {
+    public static synchronized String generateAllCurrentTagsAsJSONArray() {
         synchronized (TAG_ACCESS_LOCK) {
             JSONObject ret = new JSONObject();
             JSONArray array = new JSONArray();
@@ -122,6 +122,15 @@ public abstract class CEntityTagManager {
             }
 
             return ret.toString();
+        }
+    }
+
+    /**
+     * TODO generateHotCurrentTagsAsJSONArray
+     */
+    public static synchronized String generateHotCurrentTagsAsJSONArray(Integer amount) {
+        synchronized (TAG_ACCESS_LOCK) {
+            return "";
         }
     }
 

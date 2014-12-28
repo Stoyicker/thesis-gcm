@@ -141,6 +141,32 @@ public final class DBDAOSingleton {
         }
     }
 
+    /**
+     * TODO addSubscriptions
+     *
+     * @param deviceId
+     * @param tagList
+     * @return
+     */
+    public Boolean addSubscriptions(String deviceId, List<String> tagList) {
+        synchronized (DB_ACCESS_LOCK) {
+            return null;
+        }
+    }
+
+    /**
+     * TODO removeSubscriptions
+     *
+     * @param deviceId
+     * @param tagList
+     * @return
+     */
+    public Boolean removeSubscriptions(String deviceId, List<String> tagList) {
+        synchronized (DB_ACCESS_LOCK) {
+            return null;
+        }
+    }
+
     public List<String> getTagsNow() {
         PreparedStatement tagSelectionStatement;
         try {
