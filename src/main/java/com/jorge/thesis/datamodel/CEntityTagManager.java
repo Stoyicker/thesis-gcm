@@ -67,7 +67,7 @@ public abstract class CEntityTagManager {
             //Load tags from the database
             createTagsFromStringList(buster, DBDAOSingleton.getInstance().getTagsNow());
 
-            return CEntityTag.values().length > 0; //Weak success condition}
+            return CEntityTag.values().length > 0; //Weak success condition
         }
     }
 

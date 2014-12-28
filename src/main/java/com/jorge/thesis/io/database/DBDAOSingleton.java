@@ -5,10 +5,8 @@ import com.jorge.thesis.io.file.FileReadUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -17,6 +15,8 @@ public final class DBDAOSingleton {
     private static final Object LOCK = new Object();
     private static final Object DB_ACCESS_LOCK = new Object();
     private static final String TAGS_TABLE_NAME = "TAGS_TABLE";
+    private static final String TAGS_TABLE_KEY_TAG_NAME = "TAG_NAME";
+    private static final String TAG_TABLE_KEY_SUBSCRIBER = "TAG_SUBSCRIBER";
     private static volatile DBDAOSingleton mInstance;
     private final Connection mConnection;
 
@@ -50,7 +50,7 @@ public final class DBDAOSingleton {
         try {
             tagsTableCreation = mConnection.prepareStatement("CREATE TABLE " + TAGS_TABLE_NAME +
                     " (" +
-                    "TAG_NAME CHAR PRIMARY KEY" +
+                    TAGS_TABLE_KEY_TAG_NAME + " VARCHAR(32) PRIMARY KEY" +
                     " )");
         } catch (SQLException e) {
             e.printStackTrace(System.err);
@@ -71,38 +71,27 @@ public final class DBDAOSingleton {
         }
     }
 
-    public void createTagsTables(List<String> tagNames) {
-        List<String> cleanTagNames = new LinkedList<>();
-
-        for (String tagName : tagNames) {
-            tagName = tagName.toLowerCase().trim();
-            if (!cleanTagNames.contains(tagName)) {
-                cleanTagNames.add(tagName);
-            }
-        }
-
-        for (String cleanTagName : cleanTagNames) {
-            addTag(cleanTagName);
-        }
-    }
-
     /**
      * TODO Add a tag
      */
     public Boolean addTag(String tagName) {
         PreparedStatement tagRowInsertion, tagTableCreation;
         try {
-            tagTableCreation = mConnection.prepareStatement("CREATE TABLE " + TAGS_TABLE_NAME +
+            tagTableCreation = mConnection.prepareStatement("CREATE TABLE " + tagName +
                     " (" +
-                    "TAG_NAME CHAR PRIMARY KEY" +
+                    TAG_TABLE_KEY_SUBSCRIBER + " VARCHAR(32) PRIMARY KEY" +
                     " )");
             tagRowInsertion = mConnection.prepareStatement("INSERT INTO " + TAGS_TABLE_NAME + " VALUES ('" + tagName
                     + "')");
         } catch (SQLException e) {
-            e.printStackTrace(System.err);
-            //Should never happen
-            System.err.println("Error when preparing one of the commands for database tag insertion." +
-                    " Aborting insertion.");
+            final String errorState = e.getSQLState();
+            if (!errorState.contentEquals("X0Y32") || !errorState.contentEquals("23505")) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                System.err.println("Error when preparing one of the commands for database tag insertion." +
+                        " Aborting insertion.");
+            }
+            //If the tag is duplicated, no tag is added and therefore the operation fails
             return Boolean.FALSE;
         }
 
@@ -155,12 +144,35 @@ public final class DBDAOSingleton {
         }
     }
 
-    /**
-     * TODO Get all current tags
-     */
     public List<String> getTagsNow() {
+        PreparedStatement tagSelectionStatement;
+        try {
+            tagSelectionStatement = mConnection.prepareStatement("SELECT " + TAGS_TABLE_KEY_TAG_NAME + " FROM " +
+                    TAGS_TABLE_NAME);
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+            //Should never happen
+            System.err.println("Error when preparing the command for retrieval of the full set of tags." +
+                    " Returning empty collection of tags.");
+            return Collections.<String>emptyList();
+        }
+
+        final List<String> ret = new LinkedList<>();
+
         synchronized (DB_ACCESS_LOCK) {
-            List<String> ret = new LinkedList<>();
+            try {
+                tagSelectionStatement.execute();
+                ResultSet resultSet = tagSelectionStatement.getResultSet();
+                while (resultSet.next()) {
+                    ret.add(resultSet.getString(TAGS_TABLE_KEY_TAG_NAME));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                System.err.println("Error when preparing the command for retrieval of the full set of tags." +
+                        " Returning empty collection of tags.");
+                return Collections.<String>emptyList();
+            }
 
             System.out.println("Retrieved database tags " + ret.toString());
             return ret;

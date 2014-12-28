@@ -42,12 +42,14 @@ public final class TagService extends HttpServlet {
                 case "subscribe": //Request sent by a device
                     if (deviceId != null) {
                         //TODO Subscribe device to tags
+                        resp.setStatus(HttpServletResponse.SC_OK);
                     } else
                         resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     break;
                 case "unsubscribe": //Request sent by a device
                     if (deviceId != null) {
                         //TODO Unsubscribe device from tags
+                        resp.setStatus(HttpServletResponse.SC_OK);
                     } else
                         resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     break;
