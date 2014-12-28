@@ -1,7 +1,7 @@
 package com.jorge.thesis;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
-import com.jorge.thesis.services.MessagingService;
+import com.jorge.thesis.services.TagService;
 import com.jorge.thesis.util.EnvVars;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -36,8 +36,8 @@ public class Main {
                 ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);
-        context.addServlet(new ServletHolder(new MessagingService()),
-                "/services/messages");
+        context.addServlet(new ServletHolder(new TagService()),
+                "/services/tags");
 
         System.out.print("Requesting server start...");
         server.start();
