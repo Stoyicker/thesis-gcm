@@ -31,6 +31,8 @@ public class Main {
                 System.out.println(x);
         } else System.out.println("No tags were loaded");
 
+        DerbyTest.test();
+
         Server server = new Server(webPort);
         ServletContextHandler context = new ServletContextHandler(
                 ServletContextHandler.SESSIONS);
