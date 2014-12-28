@@ -15,7 +15,7 @@ import java.util.List;
 
 public class CEntityTagClass {
 
-    private static final String[] DEFAULT_TAGS = {"critical", "sickness", "promotions"};
+    private static final String[] DEFAULT_TAGS = {}; //By default there are no tags
     private static Path DEFAULT_TAGS_FILE_PATH;
 
     private CEntityTagClass() {

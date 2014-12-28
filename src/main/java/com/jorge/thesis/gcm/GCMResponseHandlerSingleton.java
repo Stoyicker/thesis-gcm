@@ -9,7 +9,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GCMResponseHandlerSingleton {
+public final class GCMResponseHandlerSingleton {
 
     private static final Object LOCK = new Object();
     private static volatile GCMResponseHandlerSingleton mInstance;

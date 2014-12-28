@@ -15,7 +15,7 @@ import java.util.Collection;
  *
  * @author Ken Dobson, Dr. Heinz M. Kabutz
  */
-public class EnumBuster<E extends Enum<E>> {
+public final class EnumBuster<E extends Enum<E>> {
     private static final Class[] EMPTY_CLASS_ARRAY =
             new Class[0];
     private static final Object[] EMPTY_OBJECT_ARRAY =

@@ -7,6 +7,6 @@ public final class EnvVars {
 
     private EnvVars() throws IllegalAccessException {
         throw new IllegalAccessException("DO NOT CONSTRUCT " + EnvVars.class.getName());
-        //Forbid construction
+        //Forbid construction even through reflection
     }
 }

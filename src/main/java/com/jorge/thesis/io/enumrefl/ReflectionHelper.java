@@ -12,7 +12,7 @@ import java.lang.reflect.Modifier;
  *
  * @author Ken Dobson, Dr. Heinz M. Kabutz
  */
-public class ReflectionHelper {
+public final class ReflectionHelper {
     private static final String MODIFIERS_FIELD = "modifiers";
 
     private static final ReflectionFactory reflection =

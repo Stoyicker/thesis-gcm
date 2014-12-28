@@ -19,7 +19,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
 
-public class GCMCommunicatorSingleton {
+public final class GCMCommunicatorSingleton {
 
     private static final Object LOCK = new Object();
     private static final Integer DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE = 200;
