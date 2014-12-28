@@ -1,5 +1,6 @@
 package com.jorge.thesis.datamodel;
 
+import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.io.enumrefl.EnumBuster;
 import com.jorge.thesis.io.file.FileReadUtils;
 import org.apache.commons.io.IOUtils;
@@ -15,7 +16,7 @@ import java.util.List;
 
 public abstract class CEntityTagClass {
 
-    private static final String[] DEFAULT_TAGS = {}; //By default there are no tags
+    private static final String[] MINIMUM_TAG_SET = {}; //By default there are no tags
     private static Path DEFAULT_TAGS_FILE_PATH;
 
     private static void init() {
@@ -29,7 +30,10 @@ public abstract class CEntityTagClass {
     }
 
     public static Boolean instantiateTagSet(Path... tagSetFilePaths) {
+        //Initialize
         init();
+
+        //Load tags from configuration file or minimum tag set
         final EnumBuster<CEntityTag> buster =
                 new EnumBuster<>(CEntityTag.class,
                         CEntityTagClass.class);
@@ -41,20 +45,26 @@ public abstract class CEntityTagClass {
             createTagsFromStringList(buster, tags);
         } catch (FileNotFoundException e) {
             System.out.println(MessageFormat.format("Tags file {0} not found. Loading default tags {1}",
-                    tagSetFilePath.toAbsolutePath(), Arrays.toString(DEFAULT_TAGS)));
+                    tagSetFilePath.toAbsolutePath(), Arrays.toString(MINIMUM_TAG_SET)));
             instantiateDefaultTagSet(buster);
         }
 
-        return CEntityTag.values().length > 0;
+        //Add externally-loaded tags to the database
+        final CEntityTag[] values = CEntityTag.values();
+        for (CEntityTag x : values)
+            DBDAOSingleton.getInstance().addTag(x.name());
+
+        //Load tags from the database
+        createTagsFromStringList(buster, DBDAOSingleton.getInstance().getTagsNow());
+
+        return CEntityTag.values().length > 0; //Weak success condition
     }
 
     private static void instantiateDefaultTagSet(EnumBuster<CEntityTag> buster) {
-        createTagsFromStringList(buster, Arrays.asList(DEFAULT_TAGS));
+        createTagsFromStringList(buster, Arrays.asList(MINIMUM_TAG_SET));
     }
 
     /**
-     * @param buster
-     * @param tags
      * @return {@link Integer} The amount of tags actually added.
      */
     public static Integer createTagsFromStringList(EnumBuster<CEntityTag> buster, List<String> tags) {

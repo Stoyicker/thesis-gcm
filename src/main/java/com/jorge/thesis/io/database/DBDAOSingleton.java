@@ -2,6 +2,7 @@ package com.jorge.thesis.io.database;
 
 import com.jorge.thesis.datamodel.CEntityTagClass;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public final class DBDAOSingleton {
@@ -28,32 +29,56 @@ public final class DBDAOSingleton {
     }
 
     /**
-     * TODO addTag
+     * TODO Add a tag
      */
     public Boolean addTag(String tagName) {
-        return Boolean.FALSE;
+        synchronized (DB_ACCESS_LOCK) {
+            System.out.println("Added tag " + tagName + " to database..");
+            return Boolean.FALSE;
+        }
     }
 
     /**
-     * TODO getRegisteredIds
+     * TODO Get ids currently registered for a tag
      */
     public List<String> getRegisteredIds(CEntityTagClass.CEntityTag tag) {
-        return null;
+        synchronized (DB_ACCESS_LOCK) {
+            List<String> ret = new LinkedList<>();
+
+            System.out.println("Requested ids registered for tag " + tag.name() + ": " + ret.toString());
+            return ret;
+        }
     }
 
     /**
-     * TODO removeRegistrationIdFromAllTags
+     * TODO Update registration id on all tags
      */
     public Boolean updateRegistrationIdOnAllTags(String oldId, String newId) {
-        System.out.println("Replacing id " + oldId + " by new id " + newId);
-        return Boolean.FALSE;
+        synchronized (DB_ACCESS_LOCK) {
+            System.out.println("Replacing id " + oldId + " by new id " + newId);
+            return Boolean.FALSE;
+        }
     }
 
     /**
-     * TODO removeRegistrationIdFromAllTags
+     * TODO Remove registration id on all tags
      */
     public Boolean removeRegistrationIdFromAllTags(String regId) {
-        System.out.println("Removing registration id " + regId);
-        return Boolean.FALSE;
+        synchronized (DB_ACCESS_LOCK) {
+            System.out.println("Removing registration id " + regId);
+            return Boolean.FALSE;
+        }
+    }
+
+    /**
+     * TODO Get all current tags
+     */
+    public List<String> getTagsNow() {
+        synchronized (DB_ACCESS_LOCK) {
+            List<String> ret = new LinkedList<>();
+
+            System.out.println("Retrieved database tags " + ret.toString());
+            return ret;
+        }
     }
 }
