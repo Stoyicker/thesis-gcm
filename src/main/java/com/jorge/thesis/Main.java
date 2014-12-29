@@ -9,7 +9,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import java.text.MessageFormat;
-import java.util.Arrays;
 
 public class Main {
 
@@ -41,7 +40,7 @@ public class Main {
         context.setContextPath("/");
         server.setHandler(context);
         context.addServlet(new ServletHolder(new TagService()),
-                "/services/tags");
+                "/tags");
 
         System.out.print("Requesting server start...");
         server.start();
