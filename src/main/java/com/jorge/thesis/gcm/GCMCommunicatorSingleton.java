@@ -217,7 +217,7 @@ public final class GCMCommunicatorSingleton {
         }
 
         private synchronized List<CDelayedRequest> createSyncRequests(CDelayedTag tag) {
-            List<String> targetIds = DBDAOSingleton.getInstance().getRegisteredIds(tag.getPureTag());
+            List<String> targetIds = DBDAOSingleton.getInstance().getSubscribedRegisteredIds(tag.getPureTag());
             List<CDelayedRequest> ret = new LinkedList<>();
             for (Integer i = 0; !targetIds.isEmpty(); i++) {
                 List<String> thisGroupOfIds;

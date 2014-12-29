@@ -109,21 +109,45 @@ public final class DBDAOSingleton {
         return Boolean.TRUE;
     }
 
-    /**
-     * TODO Get ids currently registered for a tag
-     */
-    public List<String> getRegisteredIds(CEntityTagManager.CEntityTag tag) {
-        synchronized (DB_ACCESS_LOCK) {
-            List<String> ret = new LinkedList<>();
-
-            System.out.println("Requested ids registered for tag " + tag.name() + ": " + ret.toString());
-            return ret;
+    public List<String> getSubscribedRegisteredIds(CEntityTagManager.CEntityTag tag) {
+        PreparedStatement idSelectionStatement;
+        try {
+            idSelectionStatement = mConnection.prepareStatement("SELECT " + TAG_TABLE_KEY_SUBSCRIBER + " FROM " +
+                    tag.name());
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+            //Should never happen
+            System.err.println("Error when preparing the command for retrieval of the subscribed id for tag " + tag
+                    .name() +
+                    ". Returning empty collection of ids.");
+            return Collections.<String>emptyList();
         }
+
+        final List<String> ret = new LinkedList<>();
+
+        try {
+            idSelectionStatement.execute();
+            ResultSet resultSet = idSelectionStatement.getResultSet();
+            while (resultSet.next()) {
+                ret.add(resultSet.getString(TAG_TABLE_KEY_SUBSCRIBER));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+            //Should never happen
+            System.err.println("Error when preparing the command for retrieval of subscribed it to tag" + tag.name() +
+                    ". Returning empty collection of ids.");
+            return Collections.<String>emptyList();
+        }
+
+        System.out.println("Tags " + ret.toString() + " are subscribed to " + tag.name());
+
+        return ret;
     }
 
     /**
      * TODO Update registration id on all tags
      */
+
     public Boolean updateRegistrationIdOnAllTags(String oldId, String newId) {
         synchronized (DB_ACCESS_LOCK) {
             System.out.println("Replacing id " + oldId + " by new id " + newId);
