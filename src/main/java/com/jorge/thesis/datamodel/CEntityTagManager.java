@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public abstract class CEntityTagManager {
 
@@ -51,9 +52,6 @@ public abstract class CEntityTagManager {
                     : tagSetFilePaths[0];
 
             try {
-
-                //TODO Check that the CSV is right, and if it isn't, ignore it
-
                 final List<String> tags = FileReadUtils.readCSVFile(tagSetFilePath);
                 createTagsFromStringList(buster, tags);
             } catch (FileNotFoundException e) {
@@ -86,9 +84,11 @@ public abstract class CEntityTagManager {
     public static Integer createTagsFromStringList(EnumBuster<CEntityTag> buster, List<String> tags) {
         synchronized (TAG_ACCESS_LOCK) {
             final List<String> nonDuplicateTags = new ArrayList<>();
+            final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
             for (String uniqueTag : tags) {
                 uniqueTag = uniqueTag.trim().toLowerCase();
-                if (nonDuplicateTags.contains(uniqueTag)) continue; //Eliminate duplicates
+                if (nonDuplicateTags.contains(uniqueTag) && !tagFormatPattern.matcher(uniqueTag).matches())
+                    continue; //Eliminate duplicates or tags that don't come in the proper format
                 nonDuplicateTags.add(uniqueTag);
             }
 
@@ -122,15 +122,6 @@ public abstract class CEntityTagManager {
             }
 
             return ret.toString();
-        }
-    }
-
-    /**
-     * TODO generateHotCurrentTagsAsJSONArray
-     */
-    public static synchronized String generateHotCurrentTagsAsJSONArray(Integer amount) {
-        synchronized (TAG_ACCESS_LOCK) {
-            return "";
         }
     }
 

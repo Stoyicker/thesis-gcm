@@ -23,22 +23,13 @@ public final class TagService extends HttpServlet {
     @Produces("application/json")
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        final String requestType = req.getParameter("type"), hotAmount = req.getParameter("amount");
-        if (requestType == null || (requestType.toLowerCase().contentEquals("hot") && hotAmount == null))
+        final String requestType = req.getParameter("type");
+        if (requestType == null)
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         else {
             if (requestType.toLowerCase().contentEquals("list")) {
                 resp.setStatus(HttpServletResponse.SC_OK);
                 resp.getWriter().print(CEntityTagManager.generateAllCurrentTagsAsJSONArray());
-            } else if (requestType.toLowerCase().contentEquals("hot")) {
-                try {
-                    final Integer amount = Integer.parseInt(hotAmount);
-                    resp.getWriter().print(CEntityTagManager.generateHotCurrentTagsAsJSONArray(amount));
-                    resp.setStatus(HttpServletResponse.SC_OK);
-                } catch (NumberFormatException ex) {
-                    ex.printStackTrace(System.out);
-                    resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                }
             } else {
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
