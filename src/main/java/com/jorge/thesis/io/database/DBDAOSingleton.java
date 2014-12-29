@@ -102,15 +102,23 @@ public final class DBDAOSingleton {
         synchronized (DB_ACCESS_LOCK) {
             try {
                 tagTableCreation.execute();
-                tagRowInsertion.execute();
             } catch (SQLException e) {
                 final String errorState = e.getSQLState();
-                if (!e.getSQLState().contentEquals("X0Y32") && !errorState.contentEquals("23505") && tableExists
-                        (tagName)) {
+                if (!e.getSQLState().contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
                     System.err.println("ERROR STATE: " + errorState);
                     e.printStackTrace(System.err);
                     throw new IllegalStateException("Unexpected error during tag insertion into database. Aborting.");
-                }
+                } //If the table exists it's okay, just return control and continue
+            }
+            try {
+                tagRowInsertion.execute();
+            } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                if (!e.getSQLState().contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                    System.err.println("ERROR STATE: " + errorState);
+                    e.printStackTrace(System.err);
+                    throw new IllegalStateException("Unexpected error during tag insertion into database. Aborting.");
+                } //If the table exists it's okay, just return
             }
         }
 
@@ -200,23 +208,33 @@ public final class DBDAOSingleton {
         synchronized (DB_ACCESS_LOCK) {
             try {
                 mConnection.setAutoCommit(Boolean.FALSE);
-                for (PreparedStatement cmd : tagRowRemovalCmds) {
-                    cmd.execute();
-                }
             } catch (SQLException e) {
-                final String errorState = e.getSQLState();
-                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
-                    System.err.println("ERROR STATE: " + errorState);
-                    e.printStackTrace(System.err);
-                    try {
-                        mConnection.rollback();
-                        throw new IllegalStateException("Unexpected error during removal of device " + deviceId + " " +
-                                "from database. Aborting removal.");
-                    } catch (SQLException e1) {
-                        e1.printStackTrace(System.err);
-                        //Should never happen
-                        throw new IllegalStateException("Unexpected error during removal of device " + deviceId + " " +
-                                "from database. Aborting removal failed.");
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when disabling autocommit for removal of device " +
+                        deviceId + " " +
+                        " from database.");
+            }
+            for (PreparedStatement cmd : tagRowRemovalCmds) {
+                try {
+                    cmd.execute();
+                } catch (SQLException e) {
+                    final String errorState = e.getSQLState();
+                    if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                        System.err.println("ERROR STATE: " + errorState);
+                        e.printStackTrace(System.err);
+                        try {
+                            mConnection.rollback();
+                            throw new IllegalStateException("Unexpected error during removal of device " + deviceId +
+                                    " " +
+                                    "from database. Aborting removal.");
+                        } catch (SQLException e1) {
+                            e1.printStackTrace(System.err);
+                            //Should never happen
+                            throw new IllegalStateException("Unexpected error during removal of device " + deviceId +
+                                    " " +
+                                    "from database. Aborting removal failed.");
+                        }
                     }
                 }
             }
@@ -232,7 +250,7 @@ public final class DBDAOSingleton {
             }
         }
 
-        System.out.println("Removed device " + deviceId + " from database. ");
+        System.out.println("Removed device " + deviceId + " from database.");
 
         return Boolean.TRUE;
     }
@@ -266,25 +284,36 @@ public final class DBDAOSingleton {
         synchronized (DB_ACCESS_LOCK) {
             try {
                 mConnection.setAutoCommit(Boolean.FALSE);
-                for (PreparedStatement cmd : tagRowInsertionCmds) {
-                    cmd.execute();
-                }
             } catch (SQLException e) {
-                final String errorState = e.getSQLState();
-                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
-                    System.err.println("ERROR STATE: " + errorState);
-                    e.printStackTrace(System.err);
-                    try {
-                        mConnection.rollback();
-                        throw new IllegalStateException("Unexpected error during subscription of device " + deviceId
-                                + " " +
-                                "to tags " + tagList.toString() + " in the database. Aborting.");
-                    } catch (SQLException e1) {
-                        e1.printStackTrace(System.err);
-                        //Should never happen
-                        throw new IllegalStateException("Unexpected error during subscription of device " + deviceId
-                                + " " +
-                                "to tags " + tagList.toString() + " in the database. Aborting failed.");
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when disabling autocommit for subscription of " +
+                        "device " +
+                        deviceId + " " +
+                        " to tags " + tagList.toString());
+            }
+            for (PreparedStatement cmd : tagRowInsertionCmds) {
+                try {
+                    cmd.execute();
+                } catch (SQLException e) {
+                    final String errorState = e.getSQLState();
+                    if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                        System.err.println("ERROR STATE: " + errorState);
+                        e.printStackTrace(System.err);
+                        try {
+                            mConnection.rollback();
+                            throw new IllegalStateException("Unexpected error during subscription of device " +
+                                    deviceId
+                                    + " " +
+                                    "to tags " + tagList.toString() + " in the database. Aborting.");
+                        } catch (SQLException e1) {
+                            e1.printStackTrace(System.err);
+                            //Should never happen
+                            throw new IllegalStateException("Unexpected error during subscription of device " +
+                                    deviceId
+                                    + " " +
+                                    "to tags " + tagList.toString() + " in the database. Aborting failed.");
+                        }
                     }
                 }
             }
@@ -294,14 +323,16 @@ public final class DBDAOSingleton {
             } catch (SQLException e) {
                 e.printStackTrace(System.err);
                 //Should never happen
-                throw new IllegalStateException("Unexpected error when restoring state during subscription of device " +
+                throw new IllegalStateException("Unexpected error when restoring state during subscription of " +
+                        "device " +
                         "" + deviceId
                         + " " +
                         "to tags " + tagList.toString() + " in the database.");
             }
         }
 
-        System.out.println("Added subscription of device " + deviceId + " to " + existingTagNames.toString() + " to " +
+        System.out.println("Added subscription of device " + deviceId + " to " + existingTagNames.toString() + " " +
+                "to " +
                 "database.");
 
         return Boolean.TRUE;
@@ -338,25 +369,36 @@ public final class DBDAOSingleton {
         synchronized (DB_ACCESS_LOCK) {
             try {
                 mConnection.setAutoCommit(Boolean.FALSE);
-                for (PreparedStatement cmd : tagRowRemovalCmds) {
-                    cmd.execute();
-                }
             } catch (SQLException e) {
-                final String errorState = e.getSQLState();
-                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
-                    System.err.println("ERROR STATE: " + errorState);
-                    e.printStackTrace(System.err);
-                    try {
-                        mConnection.rollback();
-                        throw new IllegalStateException("Unexpected error during unsubscription of device " + deviceId
-                                + " " +
-                                "to tags " + tagList.toString() + " in the database. Aborting.");
-                    } catch (SQLException e1) {
-                        e1.printStackTrace(System.err);
-                        //Should never happen
-                        throw new IllegalStateException("Unexpected error during unsubscription of device " + deviceId
-                                + " " +
-                                "to tags " + tagList.toString() + " in the database. Aborting failed.");
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when disabling autocommit for unsubscription of " +
+                        "device " +
+                        deviceId + " " +
+                        " from tags " + tagList.toString());
+            }
+            for (PreparedStatement cmd : tagRowRemovalCmds) {
+                try {
+                    cmd.execute();
+                } catch (SQLException e) {
+                    final String errorState = e.getSQLState();
+                    if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                        System.err.println("ERROR STATE: " + errorState);
+                        e.printStackTrace(System.err);
+                        try {
+                            mConnection.rollback();
+                            throw new IllegalStateException("Unexpected error during unsubscription of device " +
+                                    deviceId
+                                    + " " +
+                                    "to tags " + tagList.toString() + " in the database. Aborting.");
+                        } catch (SQLException e1) {
+                            e1.printStackTrace(System.err);
+                            //Should never happen
+                            throw new IllegalStateException("Unexpected error during unsubscription of device " +
+                                    deviceId
+                                    + " " +
+                                    "to tags " + tagList.toString() + " in the database. Aborting failed.");
+                        }
                     }
                 }
             }
