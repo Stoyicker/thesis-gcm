@@ -47,7 +47,7 @@ public final class TagService extends HttpServlet {
             final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
             while (allTagsTokenizer.hasMoreTokens()) {
                 final String token = allTagsTokenizer.nextToken().toLowerCase().trim();
-                if (!tagFormatPattern.matcher(token).matches()) {
+                if (!tagList.contains(token) && !tagFormatPattern.matcher(token).matches()) {
                     resp.setStatus(HttpServletResponse.SC_EXPECTATION_FAILED);
                     return;
                 } else
@@ -61,7 +61,7 @@ public final class TagService extends HttpServlet {
                     break;
                 case "subscribe": //Request sent by a device
                     if (deviceId != null) {
-                        if (DBDAOSingleton.getInstance().addSubscriptions(deviceId, tagList))
+                        if (CEntityTagManager.subscribeRegistrationIdToTags(deviceId, tagList))
                             resp.setStatus(HttpServletResponse.SC_OK);
                         else
                             resp.setStatus(HttpServletResponse.SC_GONE);

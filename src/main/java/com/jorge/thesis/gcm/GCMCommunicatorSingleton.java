@@ -1,7 +1,6 @@
 package com.jorge.thesis.gcm;
 
 import com.jorge.thesis.datamodel.CEntityTagManager;
-import com.jorge.thesis.io.database.DBDAOSingleton;
 import com.jorge.thesis.io.file.FileReadUtils;
 import com.jorge.thesis.io.net.HTTPRequestsSingleton;
 import com.jorge.thesis.util.EnvVars;
@@ -217,7 +216,7 @@ public final class GCMCommunicatorSingleton {
         }
 
         private synchronized List<CDelayedRequest> createSyncRequests(CDelayedTag tag) {
-            List<String> targetIds = DBDAOSingleton.getInstance().getSubscribedRegisteredIds(tag.getPureTag());
+            List<String> targetIds = CEntityTagManager.getTagSubscribedRegistrationIds(tag.getPureTag());
             List<CDelayedRequest> ret = new LinkedList<>();
             for (Integer i = 0; !targetIds.isEmpty(); i++) {
                 List<String> thisGroupOfIds;

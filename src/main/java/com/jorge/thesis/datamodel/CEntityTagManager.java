@@ -143,5 +143,13 @@ public abstract class CEntityTagManager {
         }
     }
 
+    public static synchronized List<String> getTagSubscribedRegistrationIds(CEntityTag tag) {
+        return DBDAOSingleton.getInstance().getSubscribedRegistrationIds(tag);
+    }
+
+    public static Boolean subscribeRegistrationIdToTags(String deviceId, List<String> tags) {
+        return DBDAOSingleton.getInstance().addSubscriptions(deviceId, tags);
+    }
+
     public enum CEntityTag {}
 }

@@ -24,6 +24,7 @@ public final class DBDAOSingleton {
         try {
             mConnection = DriverManager.getConnection(IOUtils.toString(FileReadUtils.class.getResourceAsStream
                     ("/database_connection_line")));
+            mConnection.setAutoCommit(Boolean.TRUE);
         } catch (SQLException | IOException e) {
             e.printStackTrace(System.err);
             //Should never happen
@@ -53,6 +54,8 @@ public final class DBDAOSingleton {
                     TAGS_TABLE_KEY_TAG_NAME + " VARCHAR(32) PRIMARY KEY" +
                     " )");
         } catch (SQLException e) {
+            final String errorState = e.getSQLState();
+            System.err.println("ERROR STATE: " + errorState);
             e.printStackTrace(System.err);
             //Should never happen
             throw new IllegalStateException("Error when preparing one of the commands for database environment setup." +
@@ -62,7 +65,9 @@ public final class DBDAOSingleton {
             try {
                 tagsTableCreation.execute();
             } catch (SQLException e) {
+                final String errorState = e.getSQLState();
                 if (!e.getSQLState().contentEquals("X0Y32")) {
+                    System.err.println("ERROR STATE: " + errorState);
                     e.printStackTrace(System.err);
                     throw new IllegalStateException("Unexpected error during database environment setup. Aborting.");
                 }
@@ -82,7 +87,8 @@ public final class DBDAOSingleton {
                     + "')");
         } catch (SQLException e) {
             final String errorState = e.getSQLState();
-            if (!errorState.contentEquals("X0Y32") || !errorState.contentEquals("23505")) {
+            if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                System.err.println("ERROR STATE: " + errorState);
                 e.printStackTrace(System.err);
                 //Should never happen
                 System.err.println("Error when preparing one of the commands for database tag insertion." +
@@ -97,7 +103,9 @@ public final class DBDAOSingleton {
                 tagTableCreation.execute();
                 tagRowInsertion.execute();
             } catch (SQLException e) {
+                final String errorState = e.getSQLState();
                 if (!e.getSQLState().contentEquals("X0Y32")) {
+                    System.err.println("ERROR STATE: " + errorState);
                     e.printStackTrace(System.err);
                     throw new IllegalStateException("Unexpected error during tag insertion into database. Aborting.");
                 }
@@ -109,13 +117,15 @@ public final class DBDAOSingleton {
         return Boolean.TRUE;
     }
 
-    public List<String> getSubscribedRegisteredIds(CEntityTagManager.CEntityTag tag) {
+    public List<String> getSubscribedRegistrationIds(CEntityTagManager.CEntityTag tag) {
         PreparedStatement idSelectionStatement;
         try {
             idSelectionStatement = mConnection.prepareStatement("SELECT " + TAG_TABLE_KEY_SUBSCRIBER + " FROM " +
                     tag.name());
         } catch (SQLException e) {
+            final String errorState = e.getSQLState();
             e.printStackTrace(System.err);
+            System.err.println("ERROR STATE: " + errorState);
             //Should never happen
             System.err.println("Error when preparing the command for retrieval of the subscribed id for tag " + tag
                     .name() +
@@ -132,14 +142,16 @@ public final class DBDAOSingleton {
                 ret.add(resultSet.getString(TAG_TABLE_KEY_SUBSCRIBER));
             }
         } catch (SQLException e) {
+            final String errorState = e.getSQLState();
             e.printStackTrace(System.err);
+            System.err.println("ERROR STATE: " + errorState);
             //Should never happen
             System.err.println("Error when preparing the command for retrieval of subscribed it to tag" + tag.name() +
                     ". Returning empty collection of ids.");
             return Collections.<String>emptyList();
         }
 
-        System.out.println("Tags " + ret.toString() + " are subscribed to " + tag.name());
+        System.out.println("Registration ids " + ret.toString() + " are subscribed to " + tag.name());
 
         return ret;
     }
@@ -165,21 +177,63 @@ public final class DBDAOSingleton {
         }
     }
 
-    /**
-     * TODO addSubscriptions
-     *
-     * @param deviceId
-     * @param tagList
-     * @return
-     */
     public Boolean addSubscriptions(String deviceId, List<String> tagList) {
-        synchronized (DB_ACCESS_LOCK) {
-            return null;
+        final List<PreparedStatement> tagRowInsertionCmds = new LinkedList<>();
+        try {
+            for (String tag : tagList) {
+                tagRowInsertionCmds.add(mConnection.prepareStatement("INSERT INTO " + tag + " VALUES ('" + deviceId +
+                        "')"));
+            }
+        } catch (SQLException e) {
+            final String errorState = e.getSQLState();
+            if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                System.err.println("ERROR STATE: " + errorState);
+                e.printStackTrace(System.err);
+                //Should never happen
+                System.err.println("Error when preparing one of the commands for subscription of device " + deviceId
+                        + " to tags " + tagList.toString() +
+                        ". Aborting subscription.");
+            }
+            //If the tag is duplicated, no tag is added and therefore the operation fails
+            return Boolean.FALSE;
         }
+
+        synchronized (DB_ACCESS_LOCK) {
+            try {
+                mConnection.setAutoCommit(Boolean.FALSE);
+                for (PreparedStatement cmd : tagRowInsertionCmds) {
+                    cmd.execute();
+                }
+                mConnection.commit();
+                mConnection.setAutoCommit(Boolean.TRUE);
+            } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                    System.err.println("ERROR STATE: " + errorState);
+                    e.printStackTrace(System.err);
+                    try {
+                        mConnection.rollback();
+                        throw new IllegalStateException("Unexpected error during subscription of device " + deviceId
+                                + " " +
+                                "to tags " + tagList.toString() + " in the database. Aborting.");
+                    } catch (SQLException e1) {
+                        e1.printStackTrace(System.err);
+                        //Should never happen
+                        throw new IllegalStateException("Unexpected error during subscription of device " + deviceId
+                                + " " +
+                                "to tags " + tagList.toString() + " in the database. Aborting failed.");
+                    }
+                }
+            }
+        }
+
+        System.out.println("Added subscription of device " + deviceId + " to " + tagList.toString() + " to database.");
+
+        return Boolean.TRUE;
     }
 
     /**
-     * TODO removeSubscriptions
+     * TODO removeSubscriptions, create wrapper in datamodel
      *
      * @param deviceId
      * @param tagList
@@ -197,6 +251,8 @@ public final class DBDAOSingleton {
             tagSelectionStatement = mConnection.prepareStatement("SELECT " + TAGS_TABLE_KEY_TAG_NAME + " FROM " +
                     TAGS_TABLE_NAME);
         } catch (SQLException e) {
+            final String errorState = e.getSQLState();
+            System.err.println("ERROR STATE: " + errorState);
             e.printStackTrace(System.err);
             //Should never happen
             System.err.println("Error when preparing the command for retrieval of the full set of tags." +
@@ -214,6 +270,8 @@ public final class DBDAOSingleton {
                     ret.add(resultSet.getString(TAGS_TABLE_KEY_TAG_NAME));
                 }
             } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                System.err.println("ERROR STATE: " + errorState);
                 e.printStackTrace(System.err);
                 //Should never happen
                 System.err.println("Error when preparing the command for retrieval of the full set of tags." +
