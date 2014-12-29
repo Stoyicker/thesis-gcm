@@ -9,6 +9,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import java.text.MessageFormat;
+import java.util.Arrays;
 
 public class Main {
 
@@ -33,6 +34,12 @@ public class Main {
             for (Object x : CEntityTagManager.CEntityTag.values())
                 System.out.println(x);
         } else System.out.println("No tags were loaded");
+
+        CEntityTagManager.getTagSubscribedRegistrationIds((CEntityTagManager.CEntityTag.valueOf("tag1")));
+        CEntityTagManager.getTagSubscribedRegistrationIds((CEntityTagManager.CEntityTag.valueOf("tag2")));
+        CEntityTagManager.subscribeRegistrationIdToTags("testDevice", Arrays.asList("tag1", "tag2"));
+        CEntityTagManager.getTagSubscribedRegistrationIds((CEntityTagManager.CEntityTag.valueOf("tag1")));
+        CEntityTagManager.getTagSubscribedRegistrationIds((CEntityTagManager.CEntityTag.valueOf("tag2")));
 
         Server server = new Server(webPort);
         ServletContextHandler context = new ServletContextHandler(

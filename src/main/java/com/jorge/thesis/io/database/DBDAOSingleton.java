@@ -165,7 +165,6 @@ public final class DBDAOSingleton {
     /**
      * TODO Update registration id on all tags
      */
-
     public Boolean updateRegistrationIdOnAllTags(String oldId, String newId) {
         synchronized (DB_ACCESS_LOCK) {
             System.out.println("Replacing id " + oldId + " by new id " + newId);
@@ -173,14 +172,69 @@ public final class DBDAOSingleton {
         }
     }
 
-    /**
-     * TODO Remove registration id on all tags
-     */
-    public Boolean removeRegistrationIdFromAllTags(String regId) {
-        synchronized (DB_ACCESS_LOCK) {
-            System.out.println("Removing registration id " + regId);
-            return Boolean.FALSE;
+    public Boolean removeRegistrationIdFromAllTags(String deviceId) {
+        final List<String> allTags = getTagsNow();
+        final List<PreparedStatement> tagRowRemovalCmds = new LinkedList<>();
+        for (String tag : allTags) {
+            try {
+                if (tableExists(tag)) {
+                    tagRowRemovalCmds.add(mConnection.prepareStatement("DELETE FROM " + tag + " WHERE " +
+                            TAG_TABLE_KEY_SUBSCRIBER + " IN" +
+                            " (SELECT " + TAG_TABLE_KEY_SUBSCRIBER + " FROM " + tag + " WHERE " +
+                            TAG_TABLE_KEY_SUBSCRIBER + "='" +
+                            deviceId + "')"));
+                }
+            } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505") && tableExists(tag)) {
+                    System.err.println("ERROR STATE: " + errorState);
+                    e.printStackTrace(System.err);
+                    //Should never happen
+                    System.err.println("Unexpected error when preparing one of the commands for removal of device " +
+                            deviceId + " " + "from database. Aborting removal.");
+                }
+                //If the tag is duplicated, no tag is added and therefore the operation fails
+            }
         }
+
+        synchronized (DB_ACCESS_LOCK) {
+            try {
+                mConnection.setAutoCommit(Boolean.FALSE);
+                for (PreparedStatement cmd : tagRowRemovalCmds) {
+                    cmd.execute();
+                }
+            } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                    System.err.println("ERROR STATE: " + errorState);
+                    e.printStackTrace(System.err);
+                    try {
+                        mConnection.rollback();
+                        throw new IllegalStateException("Unexpected error during removal of device " + deviceId + " " +
+                                "from database. Aborting removal.");
+                    } catch (SQLException e1) {
+                        e1.printStackTrace(System.err);
+                        //Should never happen
+                        throw new IllegalStateException("Unexpected error during removal of device " + deviceId + " " +
+                                "from database. Aborting removal failed.");
+                    }
+                }
+            }
+            try {
+                mConnection.commit();
+                mConnection.setAutoCommit(Boolean.TRUE);
+            } catch (SQLException e) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when restoring state during removal of device " +
+                        deviceId + " " +
+                        "from database.");
+            }
+        }
+
+        System.out.println("Removed device " + deviceId + " from database. ");
+
+        return Boolean.TRUE;
     }
 
     public Boolean addSubscriptions(String deviceId, List<String> tagList) {
@@ -215,8 +269,6 @@ public final class DBDAOSingleton {
                 for (PreparedStatement cmd : tagRowInsertionCmds) {
                     cmd.execute();
                 }
-                mConnection.commit();
-                mConnection.setAutoCommit(Boolean.TRUE);
             } catch (SQLException e) {
                 final String errorState = e.getSQLState();
                 if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
@@ -235,6 +287,17 @@ public final class DBDAOSingleton {
                                 "to tags " + tagList.toString() + " in the database. Aborting failed.");
                     }
                 }
+            }
+            try {
+                mConnection.commit();
+                mConnection.setAutoCommit(Boolean.TRUE);
+            } catch (SQLException e) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when restoring state during subscription of device " +
+                        "" + deviceId
+                        + " " +
+                        "to tags " + tagList.toString() + " in the database.");
             }
         }
 
@@ -278,8 +341,6 @@ public final class DBDAOSingleton {
                 for (PreparedStatement cmd : tagRowRemovalCmds) {
                     cmd.execute();
                 }
-                mConnection.commit();
-                mConnection.setAutoCommit(Boolean.TRUE);
             } catch (SQLException e) {
                 final String errorState = e.getSQLState();
                 if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
@@ -299,38 +360,23 @@ public final class DBDAOSingleton {
                     }
                 }
             }
+            try {
+                mConnection.commit();
+                mConnection.setAutoCommit(Boolean.TRUE);
+            } catch (SQLException e) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when restoring state during unsubscription of " +
+                        "device " + deviceId
+                        + " " +
+                        "to tags " + tagList.toString() + " in the database. Aborting.");
+            }
         }
 
         System.out.println("Added subscription of device " + deviceId + " to " + existingTagNames.toString() + " to " +
                 "database.");
 
         return Boolean.TRUE;
-    }
-
-    private Boolean tableExists(String tableName) {
-        DatabaseMetaData metadata;
-
-        try {
-            metadata = mConnection.getMetaData();
-            ResultSet tableNames = metadata.getTables(null, null, null, new String[]{"TABLE"});
-            while (tableNames.next()) {
-                if (tableNames.getString("TABLE_NAME").toLowerCase(Locale.ENGLISH).contentEquals(tableName.toLowerCase(Locale.ENGLISH)
-                        .toLowerCase(Locale.ENGLISH))) {
-                    return Boolean.TRUE;
-                }
-            }
-        } catch (SQLException e) {
-            final String errorCode = e.getSQLState();
-            e.printStackTrace(System.err);
-            System.err.println("ERROR STATE: " + errorCode);
-            //Should never happen
-            throw new IllegalStateException("Unexpected error when checking for existence of table " + tableName + "." +
-                    " " +
-                    "Aborting.");
-        }
-
-        return Boolean.FALSE;
-
     }
 
     public List<String> getTagsNow() {
@@ -370,5 +416,31 @@ public final class DBDAOSingleton {
             System.out.println("Retrieved database tags " + ret.toString());
             return ret;
         }
+    }
+
+    private Boolean tableExists(String tableName) {
+        DatabaseMetaData metadata;
+
+        try {
+            metadata = mConnection.getMetaData();
+            ResultSet tableNames = metadata.getTables(null, null, null, new String[]{"TABLE"});
+            while (tableNames.next()) {
+                if (tableNames.getString("TABLE_NAME").toLowerCase(Locale.ENGLISH).contentEquals(tableName
+                        .toLowerCase(Locale.ENGLISH)
+                        .toLowerCase(Locale.ENGLISH))) {
+                    return Boolean.TRUE;
+                }
+            }
+        } catch (SQLException e) {
+            final String errorCode = e.getSQLState();
+            e.printStackTrace(System.err);
+            System.err.println("ERROR STATE: " + errorCode);
+            //Should never happen
+            throw new IllegalStateException("Unexpected error when checking for existence of table " + tableName + "." +
+                    " " +
+                    "Aborting.");
+        }
+
+        return Boolean.FALSE;
     }
 }
