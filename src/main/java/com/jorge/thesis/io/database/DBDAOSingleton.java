@@ -171,13 +171,84 @@ public final class DBDAOSingleton {
     }
 
     /**
-     * TODO Update registration id on all tags
+     * Assumes that the new id doesn't cause any conflicts. If it does,
+     * it removes the old id.
      */
     public Boolean updateRegistrationIdOnAllTags(String oldId, String newId) {
-        synchronized (DB_ACCESS_LOCK) {
-            System.out.println("Replacing id " + oldId + " by new id " + newId);
-            return Boolean.FALSE;
+        final List<String> allTags = getTagsNow();
+        final List<PreparedStatement> tagRowUpdateCmds = new LinkedList<>();
+        for (String tag : allTags) {
+            try {
+                if (tableExists(tag)) {
+                    tagRowUpdateCmds.add(mConnection.prepareStatement("UPDATE " + tag + " SET " +
+                            TAG_TABLE_KEY_SUBSCRIBER + " = '" +
+                            newId + "' WHERE " +
+                            TAG_TABLE_KEY_SUBSCRIBER + " IN" +
+                            " (SELECT " + TAG_TABLE_KEY_SUBSCRIBER + " FROM " + tag + " WHERE " +
+                            TAG_TABLE_KEY_SUBSCRIBER + "='" +
+                            oldId + "')"));
+                }
+            } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505") && tableExists(tag)) {
+                    System.err.println("ERROR STATE: " + errorState);
+                    e.printStackTrace(System.err);
+                    //Should never happen
+                    System.err.println("Unexpected error when preparing one of the commands for update of device " +
+                            oldId + " " + "in database. Aborting update.");
+                }
+                //If the tag is duplicated, no tag is added and therefore the operation fails
+            }
         }
+
+        synchronized (DB_ACCESS_LOCK) {
+            try {
+                mConnection.setAutoCommit(Boolean.FALSE);
+            } catch (SQLException e) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when disabling autocommit for removal of device " +
+                        oldId + " " +
+                        " from database.");
+            }
+            for (PreparedStatement cmd : tagRowUpdateCmds) {
+                try {
+                    cmd.execute();
+                } catch (SQLException e) {
+                    final String errorState = e.getSQLState();
+                    if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                        System.err.println("ERROR STATE: " + errorState);
+                        e.printStackTrace(System.err);
+                        try {
+                            mConnection.rollback();
+                            throw new IllegalStateException("Unexpected error during update of device " + oldId +
+                                    " " +
+                                    "in database. Aborting update.");
+                        } catch (SQLException e1) {
+                            e1.printStackTrace(System.err);
+                            //Should never happen
+                            throw new IllegalStateException("Unexpected error during update of device " + oldId +
+                                    " " +
+                                    "in database. Aborting update failed.");
+                        }
+                    }
+                }
+            }
+            try {
+                mConnection.commit();
+                mConnection.setAutoCommit(Boolean.TRUE);
+            } catch (SQLException e) {
+                e.printStackTrace(System.err);
+                //Should never happen
+                throw new IllegalStateException("Unexpected error when restoring state during update of device " +
+                        oldId + " " +
+                        "in database.");
+            }
+        }
+
+        System.out.println("Updated device " + oldId + " in database for " + newId + ".");
+
+        return Boolean.TRUE;
     }
 
     public Boolean removeRegistrationIdFromAllTags(String deviceId) {
