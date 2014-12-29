@@ -86,7 +86,7 @@ public abstract class CEntityTagManager {
             final List<String> nonDuplicateTags = new ArrayList<>();
             final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
             for (String uniqueTag : tags) {
-                uniqueTag = uniqueTag.trim().toLowerCase();
+                uniqueTag = uniqueTag.trim().toLowerCase(Locale.ENGLISH);
                 if (nonDuplicateTags.contains(uniqueTag) && !tagFormatPattern.matcher(uniqueTag).matches())
                     continue; //Eliminate duplicates or tags that don't come in the proper format
                 nonDuplicateTags.add(uniqueTag);
@@ -149,6 +149,10 @@ public abstract class CEntityTagManager {
 
     public static Boolean subscribeRegistrationIdToTags(String deviceId, List<String> tags) {
         return DBDAOSingleton.getInstance().addSubscriptions(deviceId, tags);
+    }
+
+    public static Boolean unsubscribeRegistrationIdFromTags(String deviceId, List<String> tags) {
+        return DBDAOSingleton.getInstance().removeSubscriptions(deviceId, tags);
     }
 
     public enum CEntityTag {}

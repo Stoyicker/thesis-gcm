@@ -1,7 +1,6 @@
 package com.jorge.thesis.services;
 
 import com.jorge.thesis.datamodel.CEntityTagManager;
-import com.jorge.thesis.io.database.DBDAOSingleton;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -11,6 +10,7 @@ import javax.ws.rs.Produces;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
@@ -27,7 +27,7 @@ public final class TagService extends HttpServlet {
         if (requestType == null)
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         else {
-            if (requestType.toLowerCase().contentEquals("list")) {
+            if (requestType.toLowerCase(Locale.ENGLISH).contentEquals("list")) {
                 resp.setStatus(HttpServletResponse.SC_OK);
                 resp.getWriter().print(CEntityTagManager.generateAllCurrentTagsAsJSONArray());
             } else {
@@ -46,7 +46,7 @@ public final class TagService extends HttpServlet {
             final StringTokenizer allTagsTokenizer = new StringTokenizer(paramTags, TAG_SEPARATOR);
             final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
             while (allTagsTokenizer.hasMoreTokens()) {
-                final String token = allTagsTokenizer.nextToken().toLowerCase().trim();
+                final String token = allTagsTokenizer.nextToken().toLowerCase(Locale.ENGLISH).trim();
                 if (!tagList.contains(token) && !tagFormatPattern.matcher(token).matches()) {
                     resp.setStatus(HttpServletResponse.SC_EXPECTATION_FAILED);
                     return;
@@ -70,7 +70,7 @@ public final class TagService extends HttpServlet {
                     break;
                 case "unsubscribe": //Request sent by a device
                     if (deviceId != null) {
-                        if (DBDAOSingleton.getInstance().removeSubscriptions(deviceId, tagList))
+                        if (CEntityTagManager.unsubscribeRegistrationIdFromTags(deviceId, tagList))
                             resp.setStatus(HttpServletResponse.SC_OK);
                         else
                             resp.setStatus(HttpServletResponse.SC_GONE);
