@@ -52,7 +52,7 @@ public abstract class CEntityTagManager {
                 final List<String> tags = FileReadUtils.readCSVFile(tagSetFilePath);
                 createTagsFromStringList(buster, tags);
             } catch (FileNotFoundException e) {
-                System.out.println(MessageFormat.format("Tags file {0} not found. Loading default tags {1}",
+                System.out.println(MessageFormat.format("Tags file {0} not found. Loading minimum tags {1}",
                         tagSetFilePath.toAbsolutePath(), Arrays.toString(MINIMUM_TAG_SET)));
                 instantiateDefaultTagSet(buster);
             }
