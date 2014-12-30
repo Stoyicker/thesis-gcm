@@ -6,7 +6,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.Produces;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,7 +19,6 @@ public final class TagService extends HttpServlet {
     private static final String TAG_SEPARATOR = "+";
 
     @Override
-    @Produces("application/json")
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         final String requestType = req.getParameter("type");
@@ -34,6 +32,8 @@ public final class TagService extends HttpServlet {
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             }
         }
+
+        resp.setContentType("application/json");
     }
 
     @Override
