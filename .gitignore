@@ -9,3 +9,4 @@ bin
 .env
 *.iml
 out
+conf
