@@ -15,7 +15,6 @@ import java.util.regex.Pattern;
 
 public final class TagService extends HttpServlet {
 
-    private static final long serialVersionUID = -9034267862516901563L;
     private static final String TAG_SEPARATOR = "+";
 
     @Override
