@@ -21,7 +21,7 @@ public final class TagService extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         synchronized (this) {
-            final String requestType = req.getParameter("type");
+            final String requestType = req.getParameter("type"); //Request sent by a device to retrieve all tags
             if (requestType == null)
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             else {
