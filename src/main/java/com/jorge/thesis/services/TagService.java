@@ -20,66 +20,70 @@ public final class TagService extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        final String requestType = req.getParameter("type");
-        if (requestType == null)
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        else {
-            if (requestType.toLowerCase(Locale.ENGLISH).contentEquals("list")) {
-                resp.setStatus(HttpServletResponse.SC_OK);
-                resp.getWriter().print(CEntityTagManager.generateAllCurrentTagsAsJSONArray());
-            } else {
+        synchronized (this) {
+            final String requestType = req.getParameter("type");
+            if (requestType == null)
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            else {
+                if (requestType.toLowerCase(Locale.ENGLISH).contentEquals("list")) {
+                    resp.setStatus(HttpServletResponse.SC_OK);
+                    resp.getWriter().print(CEntityTagManager.generateAllCurrentTagsAsJSONArray());
+                } else {
+                    resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                }
             }
-        }
 
-        resp.setContentType("application/json");
+            resp.setContentType("application/json");
+        }
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        final String requestType = req.getParameter("type"), deviceId = req.getParameter("id"), paramTags = req
-                .getParameter("tags");
+        synchronized (this) {
+            final String requestType = req.getParameter("type"), deviceId = req.getParameter("id"), paramTags = req
+                    .getParameter("tags");
 
-        if (requestType != null && paramTags != null) {
-            final List<String> tagList = new LinkedList<>();
-            final StringTokenizer allTagsTokenizer = new StringTokenizer(paramTags, TAG_SEPARATOR);
-            final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
-            while (allTagsTokenizer.hasMoreTokens()) {
-                final String token = allTagsTokenizer.nextToken().toLowerCase(Locale.ENGLISH).trim();
-                if (!tagList.contains(token) && !tagFormatPattern.matcher(token).matches()) {
-                    resp.setStatus(HttpServletResponse.SC_EXPECTATION_FAILED);
-                    return;
-                } else
-                    tagList.add(token);
-            }
-            switch (requestType) {
-                case "sync": //Request sent by the file server
-                    tagList.forEach(CEntityTagManager::createTagSyncRequest);
+            if (requestType != null && paramTags != null) {
+                final List<String> tagList = new LinkedList<>();
+                final StringTokenizer allTagsTokenizer = new StringTokenizer(paramTags, TAG_SEPARATOR);
+                final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
+                while (allTagsTokenizer.hasMoreTokens()) {
+                    final String token = allTagsTokenizer.nextToken().toLowerCase(Locale.ENGLISH).trim();
+                    if (!tagList.contains(token) && !tagFormatPattern.matcher(token).matches()) {
+                        resp.setStatus(HttpServletResponse.SC_EXPECTATION_FAILED);
+                        return;
+                    } else
+                        tagList.add(token);
+                }
+                switch (requestType) {
+                    case "sync": //Request sent by the file server
+                        tagList.forEach(CEntityTagManager::createTagSyncRequest);
 
-                    resp.setStatus(HttpServletResponse.SC_OK);
-                    break;
-                case "subscribe": //Request sent by a device
-                    if (deviceId != null) {
-                        if (CEntityTagManager.subscribeRegistrationIdToTags(deviceId, tagList))
-                            resp.setStatus(HttpServletResponse.SC_OK);
-                        else
-                            resp.setStatus(HttpServletResponse.SC_GONE);
-                    } else
+                        resp.setStatus(HttpServletResponse.SC_OK);
+                        break;
+                    case "subscribe": //Request sent by a device
+                        if (deviceId != null) {
+                            if (CEntityTagManager.subscribeRegistrationIdToTags(deviceId, tagList))
+                                resp.setStatus(HttpServletResponse.SC_OK);
+                            else
+                                resp.setStatus(HttpServletResponse.SC_GONE);
+                        } else
+                            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        break;
+                    case "unsubscribe": //Request sent by a device
+                        if (deviceId != null) {
+                            if (CEntityTagManager.unsubscribeRegistrationIdFromTags(deviceId, tagList))
+                                resp.setStatus(HttpServletResponse.SC_OK);
+                            else
+                                resp.setStatus(HttpServletResponse.SC_GONE);
+                        } else
+                            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        break;
+                    default:
                         resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    break;
-                case "unsubscribe": //Request sent by a device
-                    if (deviceId != null) {
-                        if (CEntityTagManager.unsubscribeRegistrationIdFromTags(deviceId, tagList))
-                            resp.setStatus(HttpServletResponse.SC_OK);
-                        else
-                            resp.setStatus(HttpServletResponse.SC_GONE);
-                    } else
-                        resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    break;
-                default:
-                    resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            }
-        } else
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                }
+            } else
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        }
     }
 }
