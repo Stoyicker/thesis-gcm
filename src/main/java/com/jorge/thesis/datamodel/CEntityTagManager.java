@@ -133,7 +133,21 @@ public abstract class CEntityTagManager {
 
             if (CEntityTagManager.createTagsFromStringList(buster, l) == 1) { //Return is amount of newly added tags
                 if (DBDAOSingleton.getInstance().addTag(s)) {
-                    GCMCommunicatorSingleton.getInstance().queueTagSyncRequest(CEntityTagManager.CEntityTag.valueOf(s));
+                    CEntityTag tag = null;
+
+                    for (CEntityTag x : CEntityTag.values()) { //Using valueOf instead won't find the tag at times
+                        if (s.contentEquals(x.name())) {
+                            tag = x;
+                            break;
+                        }
+                    }
+
+                    if (tag == null) {
+                        System.out.println("Error when adding tag " + s + " to database (not found). Skipping.");
+                        return;
+                    }
+
+                    GCMCommunicatorSingleton.getInstance().queueTagSyncRequest(tag);
                 } else
                     System.out.println("Error when adding tag " + s + " to database. Skipping.");
             }

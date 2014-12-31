@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 
 public final class TagService extends HttpServlet {
 
-    private static final String TAG_SEPARATOR = "+";
+    private static final String TAG_SEPARATOR = "-";
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -49,14 +49,16 @@ public final class TagService extends HttpServlet {
                 final Pattern tagFormatPattern = Pattern.compile("[a-z0-9_]+");
                 while (allTagsTokenizer.hasMoreTokens()) {
                     final String token = allTagsTokenizer.nextToken().toLowerCase(Locale.ENGLISH).trim();
-                    if (!tagList.contains(token) && !tagFormatPattern.matcher(token).matches()) {
+                    if (!tagFormatPattern.matcher(token).matches()) {
+                        System.err.println("Expectation failed for tag " + token);
                         resp.setStatus(HttpServletResponse.SC_EXPECTATION_FAILED);
                         return;
-                    } else
+                    } else if (!tagList.contains(token))
                         tagList.add(token);
                 }
                 switch (requestType) {
                     case "sync": //Request sent by the file server
+                        System.out.println("Sync requested for tags " + tagList);
                         tagList.forEach(CEntityTagManager::createTagSyncRequest);
 
                         resp.setStatus(HttpServletResponse.SC_OK);

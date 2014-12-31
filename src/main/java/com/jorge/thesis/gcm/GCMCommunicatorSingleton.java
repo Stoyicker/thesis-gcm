@@ -29,11 +29,12 @@ public final class GCMCommunicatorSingleton {
     private static volatile GCMCommunicatorSingleton mInstance;
     private final BlockingQueue<CDelayedTag> mTagRequestQueue;
     private final TagSyncRequestConsumerRunnable mTagSyncRequestConsumer;
+    private final Executor mBackgroundExecutor = Executors.newSingleThreadExecutor();
 
     private GCMCommunicatorSingleton() {
         mTagRequestQueue = new LinkedBlockingQueue<>(DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE);
         mTagSyncRequestConsumer = new TagSyncRequestConsumerRunnable(mTagRequestQueue);
-        mTagSyncRequestConsumer.run();
+        mBackgroundExecutor.execute(mTagSyncRequestConsumer);
     }
 
     public static GCMCommunicatorSingleton getInstance() {
@@ -153,6 +154,7 @@ public final class GCMCommunicatorSingleton {
         private final String GOOGLE_GCM_URL;
         private final BlockingQueue<CDelayedTag> mTagRequestQueue;
         private final BlockingQueue<CDelayedRequest> mSyncRequestQueue;
+        private final Executor mBackgroundExecutor = Executors.newSingleThreadExecutor();
 
         public TagSyncRequestConsumerRunnable(BlockingQueue<CDelayedTag> _queue) {
             mTagRequestQueue = _queue;
@@ -164,7 +166,7 @@ public final class GCMCommunicatorSingleton {
                 e.printStackTrace(System.err);
                 throw new IllegalStateException("Resource /gcm_server_url not properly loaded.");
             }
-            new GCMRequestConsumerRunnable(mSyncRequestQueue).run();
+            mBackgroundExecutor.execute(new GCMRequestConsumerRunnable(mSyncRequestQueue));
         }
 
         @Override
@@ -256,7 +258,7 @@ public final class GCMCommunicatorSingleton {
         private static final long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
         private final BlockingQueue<CDelayedRequest> mRequestQueue;
 
-        public GCMRequestConsumerRunnable(BlockingQueue<CDelayedRequest> _requestQueue) {
+        private GCMRequestConsumerRunnable(BlockingQueue<CDelayedRequest> _requestQueue) {
             mRequestQueue = _requestQueue;
         }
 
