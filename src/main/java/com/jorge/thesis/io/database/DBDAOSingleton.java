@@ -514,7 +514,7 @@ public final class DBDAOSingleton {
                 tagSelectionStatement.execute();
                 ResultSet resultSet = tagSelectionStatement.getResultSet();
                 while (resultSet.next()) {
-                    ret.add(resultSet.getString(TAGS_TABLE_KEY_TAG_NAME));
+                    ret.add(resultSet.getString(TAGS_TABLE_KEY_TAG_NAME).trim());
                 }
             } catch (SQLException e) {
                 final String errorState = e.getSQLState();
