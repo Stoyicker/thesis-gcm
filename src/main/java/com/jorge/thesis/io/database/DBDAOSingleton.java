@@ -52,7 +52,7 @@ public final class DBDAOSingleton {
         try {
             tagsTableCreation = mConnection.prepareStatement("CREATE TABLE " + TAGS_TABLE_NAME +
                     " (" +
-                    TAGS_TABLE_KEY_TAG_NAME + " VARCHAR(32) PRIMARY KEY" +
+                    TAGS_TABLE_KEY_TAG_NAME + " CHAR(254) PRIMARY KEY" +
                     " )");
         } catch (SQLException e) {
             final String errorState = e.getSQLState();
@@ -82,7 +82,7 @@ public final class DBDAOSingleton {
         try {
             tagTableCreation = mConnection.prepareStatement("CREATE TABLE " + tagName.toUpperCase(Locale.ENGLISH) +
                     " (" +
-                    TAG_TABLE_KEY_SUBSCRIBER + " VARCHAR(32) PRIMARY KEY" +
+                    TAG_TABLE_KEY_SUBSCRIBER + " CHAR(254) PRIMARY KEY" +
                     " )");
             tagRowInsertion = mConnection.prepareStatement("INSERT INTO " + TAGS_TABLE_NAME + " VALUES ('" + tagName
                     + "')");
