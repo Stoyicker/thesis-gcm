@@ -14,8 +14,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -31,6 +29,7 @@ public final class GCMCommunicatorSingleton {
     private static volatile GCMCommunicatorSingleton mInstance;
     private final BlockingQueue<CDelayedTag> mTagRequestQueue;
     private final TagSyncRequestConsumerRunnable mTagSyncRequestConsumer;
+    @SuppressWarnings("FieldCanBeLocal")
     private final Executor mBackgroundExecutor = Executors.newSingleThreadExecutor();
 
     private GCMCommunicatorSingleton() {
@@ -244,17 +243,12 @@ public final class GCMCommunicatorSingleton {
                     throw new IllegalStateException("API_KEY environment variable not defined. Please check the " +
                             "technical specification for instructions.");
                 }
-                try {
-                    ret.add(new CDelayedRequest(new Request.Builder().
-                            addHeader("Authorization", EnvVars.API_KEY).
-                            addHeader("Content-Type", "application/json").
-                            url(URLEncoder.encode(GOOGLE_GCM_URL, "UTF-8")).
-                            post(RequestBody.create(JSON, body.toString())).build(), tag.getDelay(TimeUnit.MILLISECONDS),
-                            TimeUnit.MILLISECONDS));
-                } catch (UnsupportedEncodingException e) {
-                    //Should never happen
-                    e.printStackTrace(System.err);
-                }
+                ret.add(new CDelayedRequest(new Request.Builder().
+                        addHeader("Authorization", EnvVars.API_KEY).
+                        addHeader("Content-Type", "application/json").
+                        url(GOOGLE_GCM_URL).
+                        post(RequestBody.create(JSON, body.toString())).build(), tag.getDelay(TimeUnit.MILLISECONDS),
+                        TimeUnit.MILLISECONDS));
             }
             return ret;
         }
