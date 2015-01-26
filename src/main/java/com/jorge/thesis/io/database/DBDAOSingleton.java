@@ -329,27 +329,26 @@ public final class DBDAOSingleton {
     public Boolean addSubscriptions(String deviceId, List<String> tagList) {
         final List<PreparedStatement> tagRowInsertionCmds = new LinkedList<>();
         final List<String> existingTagNames = new LinkedList<>();
-        try {
-            for (String tag : tagList) {
-                if (tableExists(tag)) {
-                    tagRowInsertionCmds.add(mConnection.prepareStatement("INSERT INTO " + tag + " VALUES ('" +
-                            deviceId +
-                            "')"));
-                    existingTagNames.add(tag);
+        for (String tag : tagList) {
+            try {
+                if (!tableExists(tag)) {
+                    this.addTag(tag);
+                }
+                tagRowInsertionCmds.add(mConnection.prepareStatement("INSERT INTO " + tag + " VALUES ('" +
+                        deviceId +
+                        "')"));
+                existingTagNames.add(tag);
+            } catch (SQLException e) {
+                final String errorState = e.getSQLState();
+                if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
+                    System.err.println("ERROR STATE: " + errorState);
+                    e.printStackTrace(System.err);
+                    //Should never happen
+                    System.err.println("Error when preparing one of the commands for subscription of device " + deviceId
+                            + " to tags " + tagList.toString() +
+                            ". Aborting subscription.");
                 }
             }
-        } catch (SQLException e) {
-            final String errorState = e.getSQLState();
-            if (!errorState.contentEquals("X0Y32") && !errorState.contentEquals("23505")) {
-                System.err.println("ERROR STATE: " + errorState);
-                e.printStackTrace(System.err);
-                //Should never happen
-                System.err.println("Error when preparing one of the commands for subscription of device " + deviceId
-                        + " to tags " + tagList.toString() +
-                        ". Aborting subscription.");
-            }
-            //If the tag is duplicated, no tag is added and therefore the operation fails
-            return Boolean.FALSE;
         }
 
         synchronized (DB_ACCESS_LOCK) {
@@ -486,7 +485,7 @@ public final class DBDAOSingleton {
             }
         }
 
-        System.out.println("Added subscription of device " + deviceId + " to " + existingTagNames.toString() + " to " +
+        System.out.println("Removed subscription of device " + deviceId + " from " + existingTagNames.toString() + " in " +
                 "database.");
 
         return Boolean.TRUE;
