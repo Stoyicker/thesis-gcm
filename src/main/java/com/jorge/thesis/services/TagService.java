@@ -59,8 +59,8 @@ public final class TagService extends HttpServlet {
                 switch (requestType) {
                     case "sync": //Request sent by the file server
                         System.out.println("Sync requested for tags " + tagList);
-                        tagList.forEach(CEntityTagManager::createTagSyncRequest);
                         resp.setStatus(deviceId == null || CEntityTagManager.subscribeRegistrationIdToTags(deviceId, tagList) ? HttpServletResponse.SC_OK : HttpServletResponse.SC_GONE);
+                        tagList.forEach(CEntityTagManager::createTagSyncRequest);
                         break;
                     case "subscribe": //Request sent by a device
                         if (deviceId != null) {
