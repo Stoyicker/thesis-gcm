@@ -16,26 +16,23 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.TimeUnit;
 
 public final class GCMCommunicatorSingleton {
 
     private static final Object LOCK = new Object();
-    private static final Integer DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE = 200;
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final Integer MAX_AMOUNT_OF_IDS_PER_REQUEST = 950; //Must be 1000 or less
     private static final Long TAG_SYNC_REQUEST_INITIAL_DELAY = 55L;
     private static final Integer EXPONENTIAL_WAIT_INCREASE_FACTOR = 2;
     private static volatile GCMCommunicatorSingleton mInstance;
-    private final BlockingQueue<CDelayedTag> mTagRequestQueue;
-    private final TagSyncRequestConsumerRunnable mTagSyncRequestConsumer;
-    @SuppressWarnings("FieldCanBeLocal")
-    private final Executor mBackgroundExecutor = Executors.newSingleThreadExecutor();
+    private final Queue<CDelayedTag> mTagRequestQueue = new LinkedList<>();
+    private final Queue<CDelayedRequest> mSyncRequestQueue = new LinkedList<>();
 
     private GCMCommunicatorSingleton() {
-        mTagRequestQueue = new LinkedBlockingQueue<>(DEFAULT_TAG_SYNC_REQUEST_QUEUE_MAX_SIZE);
-        mTagSyncRequestConsumer = new TagSyncRequestConsumerRunnable(mTagRequestQueue);
-        mBackgroundExecutor.execute(mTagSyncRequestConsumer);
     }
 
     public static GCMCommunicatorSingleton getInstance() {
@@ -65,49 +62,19 @@ public final class GCMCommunicatorSingleton {
         final CDelayedTag wrapper = new CDelayedTag(tag, TAG_SYNC_REQUEST_INITIAL_DELAY, TimeUnit
                 .MILLISECONDS);
 
-        if (!mTagRequestQueue.contains(wrapper))
-            try {
-                mTagRequestQueue.put(wrapper); //Inserts at tail
-            } catch (InterruptedException e) {
-                e.printStackTrace(System.err);
-                ret = queueDelayedTagSyncRequest(wrapper);
-            }
-        else
-            return Boolean.FALSE;
+        if (!mTagRequestQueue.contains(wrapper)) {
+            mTagRequestQueue.add(wrapper); //Inserts at tail
+            onTagRequestAdded();
+        } else
+            ret = Boolean.FALSE;
 
         return ret;
-    }
-
-    private synchronized Boolean queueDelayedTagSyncRequest(CDelayedTag tag) {
-        Boolean ret = Boolean.TRUE;
-
-        if (!mTagRequestQueue.contains(tag))
-            try {
-                mTagRequestQueue.put(tag); // Inserts at tail
-            } catch (InterruptedException e) {
-                e.printStackTrace(System.err);
-                ret = queueDelayedTagSyncRequest(new CDelayedTag(tag, (long) Math.pow(tag.getDelay(TimeUnit
-                                .MILLISECONDS),
-                        EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS));
-            }
-        else
-            return Boolean.FALSE;
-
-        return ret;
-    }
-
-    public void delayAndQueueRequestForExecution(CDelayedRequest delayedRequest) {
-        mTagSyncRequestConsumer.delayAndQueueRequestForExecution(delayedRequest);
     }
 
     private static class CDelayedTag implements Delayed {
         private CEntityTagManager.CEntityTag mTag;
         private Long mDelay;
         private TimeUnit mDelayUnit;
-
-        public CDelayedTag(CDelayedTag _tag, Long _delay, TimeUnit _unit) {
-            this(_tag.getPureTag(), _delay, _unit);
-        }
 
         public CDelayedTag(CEntityTagManager.CEntityTag _tag, Long _delay, TimeUnit _unit) {
             mTag = _tag;
@@ -149,152 +116,119 @@ public final class GCMCommunicatorSingleton {
         }
     }
 
-    private static class TagSyncRequestConsumerRunnable implements Runnable {
-
-        private static final long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
-        private final String GOOGLE_GCM_URL;
-        private final BlockingQueue<CDelayedTag> mTagRequestQueue;
-        private final BlockingQueue<CDelayedRequest> mSyncRequestQueue;
-        private final Executor mBackgroundExecutor = Executors.newSingleThreadExecutor();
-
-        public TagSyncRequestConsumerRunnable(BlockingQueue<CDelayedTag> _queue) {
-            mTagRequestQueue = _queue;
-            mSyncRequestQueue = new DelayQueue<>();
+    private synchronized void onTagRequestAdded() {
+        final Long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
+        try {
+            sendSyncRequestToAllIds(GCMCommunicatorSingleton.this.mTagRequestQueue.poll());
+        } catch (NoSuchElementException e) {
+            //Report, take a break and keep trying
+            e.printStackTrace(System.err);
             try {
-                GOOGLE_GCM_URL = IOUtils.toString(FileReadUtils.class.getResourceAsStream
-                        ("/gcm_server_url"));
-            } catch (IOException e) {
+                Thread.sleep(INTERRUPTED_TAKE_WAIT_MILLIS);
+            } catch (InterruptedException e1) {
                 e.printStackTrace(System.err);
-                throw new IllegalStateException("Resource /gcm_server_url not properly loaded.");
+                //Will never happen
             }
-            mBackgroundExecutor.execute(new GCMRequestConsumerRunnable(mSyncRequestQueue));
-        }
-
-        @Override
-        public synchronized void run() {
-            //noinspection InfiniteLoopStatement
-            while (true) {
-                try {
-                    sendSyncRequestToAllIds(mTagRequestQueue.take());
-                } catch (InterruptedException e) {
-                    //Report, take a break and keep on going
-                    e.printStackTrace(System.err);
-                    try {
-                        Thread.sleep(INTERRUPTED_TAKE_WAIT_MILLIS);
-                    } catch (InterruptedException e1) {
-                        e.printStackTrace(System.err);
-                        //Will never happen
-                    }
-                }
-            }
-        }
-
-        private synchronized void sendSyncRequestToAllIds(CDelayedTag tag) {
-            List<CDelayedRequest> requests = createSyncRequests(tag);
-            //Inserts at tail
-            requests.forEach(this::delayAndQueueRequestForExecution);
-        }
-
-        /**
-         * Queues a delayed request to be sent to as many ids as possible.
-         *
-         * @param request {@link CDelayedRequest} The request to send.
-         */
-        synchronized void delayAndQueueRequestForExecution(CDelayedRequest request) {
-            request = new CDelayedRequest(request, (long) Math.pow(request.getDelay
-                            (TimeUnit
-                                    .MILLISECONDS),
-                    EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS);
-
-            if (!mSyncRequestQueue.contains(request))
-                try {
-                    mSyncRequestQueue.put(request); // Inserts at tail
-                } catch (InterruptedException e) {
-                    e.printStackTrace(System.err);
-                    delayAndQueueRequestForExecution(new CDelayedRequest(request, (long) Math.pow(request.getDelay
-                                    (TimeUnit
-                                            .MILLISECONDS),
-                            EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS));
-                }
-        }
-
-        private synchronized List<CDelayedRequest> createSyncRequests(CDelayedTag tag) {
-            List<String> targetIds = CEntityTagManager.getTagSubscribedRegistrationIds(tag.getPureTag());
-            List<CDelayedRequest> ret = new LinkedList<>();
-            for (Integer i = 0; !targetIds.isEmpty(); i++) {
-                List<String> thisGroupOfIds;
-                final Integer startIndex = i * MAX_AMOUNT_OF_IDS_PER_REQUEST, lastIndex = (i + 1) *
-                        MAX_AMOUNT_OF_IDS_PER_REQUEST;
-                if (lastIndex < targetIds.size())
-                    thisGroupOfIds = targetIds.subList(startIndex, lastIndex);
-                else
-                    thisGroupOfIds = targetIds.subList(startIndex, targetIds.size() - 1);
-                JSONObject body = new JSONObject();
-                try {
-                    body.put("registration_ids", new JSONArray(thisGroupOfIds));
-                    JSONObject data = new JSONObject();
-                    data.put("tag", tag.getPureTag().name());
-                    body.put("data", data);
-                } catch (JSONException e) {
-                    e.printStackTrace(System.err);
-                    //Will never happen
-                }
-                if (EnvVars.API_KEY == null) {
-                    throw new IllegalStateException("API_KEY environment variable not defined. Please check the " +
-                            "technical specification for instructions.");
-                }
-                ret.add(new CDelayedRequest(new Request.Builder().
-                        addHeader("Authorization", EnvVars.API_KEY).
-                        addHeader("Content-Type", "application/json").
-                        url(GOOGLE_GCM_URL).
-                        post(RequestBody.create(JSON, body.toString())).build(), tag.getDelay(TimeUnit.MILLISECONDS),
-                        TimeUnit.MILLISECONDS));
-            }
-            return ret;
+            onTagRequestAdded();
         }
     }
 
-    public static class GCMRequestConsumerRunnable implements Runnable {
+    private synchronized void sendSyncRequestToAllIds(CDelayedTag tag) {
+        List<CDelayedRequest> requests = createSyncRequests(tag);
+        //Inserts at tail
+        requests.forEach(this::delayAndQueueRequestForExecution);
+    }
 
-        private static final long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
-        private final BlockingQueue<CDelayedRequest> mRequestQueue;
+    private synchronized List<CDelayedRequest> createSyncRequests(CDelayedTag tag) {
+        List<String> targetIds = CEntityTagManager.getTagSubscribedRegistrationIds(tag.getPureTag());
+        List<CDelayedRequest> ret = new LinkedList<>();
+        final String GOOGLE_GCM_URL;
+        try {
+            GOOGLE_GCM_URL = IOUtils.toString(FileReadUtils.class.getResourceAsStream
+                    ("/gcm_server_url"));
+        } catch (IOException e) {
+            e.printStackTrace(System.err);
+            throw new IllegalStateException("Resource /gcm_server_url not properly loaded.");
+        }
+        Integer startIndex;
+        for (Integer i = 0; !((startIndex = i * MAX_AMOUNT_OF_IDS_PER_REQUEST) > targetIds.size()); i++) {
+            List<String> thisGroupOfIds;
+            final Integer lastIndex = (i + 1) *
+                    MAX_AMOUNT_OF_IDS_PER_REQUEST;
+            if (lastIndex < targetIds.size())
+                thisGroupOfIds = targetIds.subList(startIndex, lastIndex);
+            else
+                thisGroupOfIds = targetIds.subList(startIndex, targetIds.size());
+            JSONObject body = new JSONObject();
+            try {
+                body.put("registration_ids", new JSONArray(thisGroupOfIds));
+                JSONObject data = new JSONObject();
+                data.put("tag", tag.getPureTag().name());
+                body.put("data", data);
+            } catch (JSONException e) {
+                e.printStackTrace(System.err);
+                //Will never happen
+            }
+            if (EnvVars.API_KEY == null) {
+                throw new IllegalStateException("API_KEY environment variable not defined. Please check the " +
+                        "technical specification for instructions.");
+            }
+            ret.add(new CDelayedRequest(new Request.Builder().
+                    addHeader("Authorization", "key=" + EnvVars.API_KEY).
+                    addHeader("Content-Type", "application/json").
+                    url(GOOGLE_GCM_URL).
+                    post(RequestBody.create(JSON, body.toString())).build(), tag.getDelay(TimeUnit.MILLISECONDS),
+                    TimeUnit.MILLISECONDS));
+        }
+        return ret;
+    }
 
-        private GCMRequestConsumerRunnable(BlockingQueue<CDelayedRequest> _requestQueue) {
-            mRequestQueue = _requestQueue;
+    /**
+     * Queues a delayed request to be sent to as many ids as possible.
+     *
+     * @param request {@link CDelayedRequest} The request to send.
+     */
+    synchronized void delayAndQueueRequestForExecution(CDelayedRequest request) {
+        request = new CDelayedRequest(request, (long) Math.pow(request.getDelay
+                        (TimeUnit
+                                .MILLISECONDS),
+                EXPONENTIAL_WAIT_INCREASE_FACTOR), TimeUnit.MILLISECONDS);
+
+        if (!mSyncRequestQueue.contains(request)) {
+            mSyncRequestQueue.add(request); // Inserts at tail
+            onSyncRequestAdded();
+        }
+    }
+
+    private synchronized void onSyncRequestAdded() {
+        final long INTERRUPTED_TAKE_WAIT_MILLIS = 1000L;
+        try {
+            CDelayedRequest thisRequest = mSyncRequestQueue.poll();
+            new Thread(new GCMRequestExecutor(thisRequest)).start();
+        } catch (NoSuchElementException e) {
+            //Report, take a break and keep on going
+            e.printStackTrace(System.err);
+            try {
+                Thread.sleep(INTERRUPTED_TAKE_WAIT_MILLIS);
+            } catch (InterruptedException e1) {
+                e.printStackTrace(System.err);
+                //Will never happen
+            }
+            onSyncRequestAdded();
+        }
+    }
+
+    private class GCMRequestExecutor implements Runnable {
+        CDelayedRequest mDelayedRequest;
+
+        private GCMRequestExecutor(CDelayedRequest _request) {
+            mDelayedRequest = _request;
         }
 
         @Override
-        public synchronized void run() {
-            //noinspection InfiniteLoopStatement
-            while (true) {
-                try {
-                    CDelayedRequest thisRequest = mRequestQueue.take();
-                    new GCMRequestExecutor(thisRequest).run();
-                } catch (InterruptedException e) {
-                    //Report, take a break and keep on going
-                    e.printStackTrace(System.err);
-                    try {
-                        Thread.sleep(INTERRUPTED_TAKE_WAIT_MILLIS);
-                    } catch (InterruptedException e1) {
-                        e.printStackTrace(System.err);
-                        //Will never happen
-                    }
-                }
-            }
-        }
-
-        private static class GCMRequestExecutor implements Runnable {
-            CDelayedRequest mDelayedRequest;
-
-            private GCMRequestExecutor(CDelayedRequest _request) {
-                mDelayedRequest = _request;
-            }
-
-            @Override
-            public void run() {
-                GCMResponseHandlerSingleton.getInstance().handleGCMResponse(mDelayedRequest, HTTPRequestsSingleton
-                        .getInstance().performRequest(mDelayedRequest.getPureRequest()));
-            }
+        public void run() {
+            GCMResponseHandlerSingleton.getInstance().handleGCMResponse(mDelayedRequest, HTTPRequestsSingleton
+                    .getInstance().performRequest(mDelayedRequest.getPureRequest()));
         }
     }
 }
