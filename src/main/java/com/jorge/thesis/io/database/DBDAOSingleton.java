@@ -153,7 +153,7 @@ public final class DBDAOSingleton {
             idSelectionStatement.execute();
             ResultSet resultSet = idSelectionStatement.getResultSet();
             while (resultSet.next()) {
-                ret.add(resultSet.getString(TAG_TABLE_KEY_SUBSCRIBER));
+                ret.add(resultSet.getString(TAG_TABLE_KEY_SUBSCRIBER).trim());
             }
         } catch (SQLException e) {
             final String errorState = e.getSQLState();

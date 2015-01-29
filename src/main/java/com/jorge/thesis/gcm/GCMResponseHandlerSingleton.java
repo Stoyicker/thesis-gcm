@@ -48,14 +48,26 @@ public final class GCMResponseHandlerSingleton {
                 }
                 if (responseCode == 200) {
                     try {
-                        if (((!body.get("failure").toString().contentEquals("0") || !body.get("canonical_ids") //(1)
-                                .toString().contentEquals("0")))) {
+                        final String failure = body.get("failure").toString();
+                        final String canonicalIds = body.get("canonical_ids") //(1)
+                                .toString();
+                        if (((!failure.contentEquals("0") || !canonicalIds.contentEquals("0")))) {
+                            System.err.println("Sending not ideal. Some work has to be done.");
                             final JSONArray results = body.getJSONArray("results"); //(2)
                             for (int i = 0; i < results.length(); i++) {
                                 final JSONObject obj = results.getJSONObject(i); //(3)
-                                try {
-                                    final String message_id = obj.getString("message_id");
-                                } catch (JSONException e) {
+                                if (obj.has("message_id")) {
+                                    if (obj.has("registration_id")) {
+                                        final String new_reg_id = obj.getString
+                                                ("registration_id"), old_reg_id = new JSONObject(
+                                                (delayedRequest.getPureRequest().body().toString()))
+                                                .getJSONArray("registration_ids").getString(i);
+                                        System.err.println("Registration id update requested (" + old_reg_id + ") by (" + new_reg_id + ")");
+                                        DBDAOSingleton.getInstance().updateRegistrationIdOnAllTags(old_reg_id, new_reg_id);
+                                    } else {
+                                        System.out.println("GCM response normal.");
+                                    }
+                                } else {
                                     switch (obj.getString("error")) { // (4)
                                         case "Unavailable":
                                             System.err.println("Server unavailable\nRetrying with exponential " +
@@ -72,6 +84,7 @@ public final class GCMResponseHandlerSingleton {
                                             break;
                                         case "MissingRegistration":
                                             //Do nothing, we wanted no targets and so it be
+                                            System.out.println("Message requested to no targets.");
                                             break;
                                         case "InvalidRegistration":
                                             throw new IllegalStateException("GCM Error response InvalidRegistration -" +
@@ -138,17 +151,6 @@ public final class GCMResponseHandlerSingleton {
                                                     (delayedRequest.getPureRequest().body().toString()))
                                                     .getJSONArray("registration_ids").getString(i));
                                     }
-                                }
-                                try {
-                                    final String registration_id = obj.getString
-                                            ("registration_id");
-                                    System.err.println("Registration id update requested...");
-                                    DBDAOSingleton.getInstance().updateRegistrationIdOnAllTags(new JSONObject(
-                                            (delayedRequest.getPureRequest().body().toString()))
-                                            .getJSONArray("registration_ids").getString(i), registration_id);
-                                } catch (JSONException e) {
-                                    //Everything went fine and update is not needed (message_id is set
-                                    // and registration_id not) or there was error (message_id was not set)
                                 }
                             }
                         }
